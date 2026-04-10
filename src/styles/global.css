@@ -458,12 +458,12 @@ body {
   color: var(--accent);
 }
 
-/* Expanded state */
+/* ----- Expanded state ----- */
 .briefing .full-summary {
   display: none;
-  margin-top: 16px;
+  margin-top: 8px;
   font-size: 17px;
-  line-height: 1.75;
+  line-height: 1.8;
   color: var(--ink);
   font-weight: 500;
 }
@@ -474,6 +474,40 @@ body {
 
 .briefing[data-expanded="true"] .preview {
   display: none;
+}
+
+/* Opening one-line headline from the Gemini prompt spec (주제 한 줄). */
+.briefing .full-summary-headline {
+  font-family: "Paperlogy", "Apple SD Gothic Neo", sans-serif;
+  font-weight: 900;
+  font-size: clamp(18px, 2.3vw, 22px);
+  line-height: 1.35;
+  color: var(--accent);
+  margin: 4px 0 32px;
+  letter-spacing: -0.2px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid var(--rule);
+}
+
+/* Body paragraphs. Each block in the Gemini output maps to a separate
+   thought — 핵심 주장 → 근거/데이터 → 함의 — so we push them apart with
+   meaningful vertical space. */
+.briefing .full-summary p {
+  margin: 0 0 28px;
+}
+
+.briefing .full-summary p:last-child {
+  margin-bottom: 0;
+}
+
+/* Slightly indent body paragraphs so the headline "carries" the column.
+   Subtle — not a full editorial indent, just enough to create a visual
+   left-edge hierarchy. Disabled on narrow mobile widths. */
+@media (min-width: 640px) {
+  .briefing .full-summary p {
+    padding-left: 16px;
+    border-left: 1px solid var(--rule);
+  }
 }
 
 /* ----- Feed end + footer ----- */

@@ -51,12 +51,80 @@ const failureDisplay = isFailed && data.failure_reason
   ? failureMessages[data.failure_reason] ?? data.failure_reason
   : null;
 
-// First 180 chars of summary for the collapsed preview
-function previewText(summary: string | null): string {
-  if (!summary) return "";
-  if (summary.length <= 180) return summary;
-  return summary.slice(0, 180) + "…";
+/**
+ * Parse a Gemini-produced summary into a structured shape.
+ *
+ * The prompt spec in pipeline/summarizers/gemini_flash.py asks the model to
+ * produce:
+ *   **주제 한 줄**            (15자 이내 headline, 개조식)
+ *   <blank line>
+ *   핵심 주장 3~4문장
+ *   <blank line>
+ *   근거/데이터 4~6문장
+ *   <blank line>
+ *   함의 2~3문장
+ *
+ * So we split on `\n\n+`, extract an optional opening `**headline**`, and
+ * treat the rest as body paragraphs. This lets the frontend render with
+ * real paragraph spacing instead of one wall of text.
+ */
+interface ParsedSummary {
+  headline: string | null;
+  paragraphs: string[];
 }
+
+function parseSummary(summary: string): ParsedSummary {
+  const trimmed = summary.trim();
+  if (!trimmed) return { headline: null, paragraphs: [] };
+
+  const blocks = trimmed
+    .split(/\n\s*\n+/)
+    .map((b) => b.trim())
+    .filter((b) => b.length > 0);
+
+  if (blocks.length === 0) return { headline: null, paragraphs: [] };
+
+  const headerMatch = blocks[0].match(/^\*\*(.+?)\*\*\s*$/s);
+  if (headerMatch) {
+    return {
+      headline: headerMatch[1].trim(),
+      paragraphs: blocks.slice(1),
+    };
+  }
+
+  return { headline: null, paragraphs: blocks };
+}
+
+/**
+ * Produce the collapsed-card preview text.
+ *
+ * Skips the `**headline**` and takes the first real paragraph. Truncates at
+ * ~180 Korean chars on a sentence boundary when possible so the preview
+ * doesn't end mid-word.
+ */
+function cleanPreview(summary: string | null): string {
+  if (!summary) return "";
+  const parsed = parseSummary(summary);
+  const first = parsed.paragraphs[0] ?? parsed.headline ?? "";
+  if (first.length <= 180) return first;
+
+  const sliced = first.slice(0, 180);
+  // Prefer to end at a Korean sentence-ending punctuation.
+  const boundaries = ["다.", "요.", "음.", ".", "!", "?"];
+  let bestCut = -1;
+  for (const b of boundaries) {
+    const idx = sliced.lastIndexOf(b);
+    if (idx > bestCut) bestCut = idx + b.length;
+  }
+  if (bestCut > 100) {
+    return first.slice(0, bestCut).trim() + " …";
+  }
+  return sliced + "…";
+}
+
+const parsedSummary: ParsedSummary = !isFailed && data.summary
+  ? parseSummary(data.summary)
+  : { headline: null, paragraphs: [] };
 ---
 
 <article
@@ -83,8 +151,15 @@ function previewText(summary: string | null): string {
       </p>
     ) : (
       <>
-        <p class="preview">{previewText(data.summary)}</p>
-        <div class="full-summary">{data.summary}</div>
+        <p class="preview">{cleanPreview(data.summary)}</p>
+        <div class="full-summary">
+          {parsedSummary.headline && (
+            <h3 class="full-summary-headline">{parsedSummary.headline}</h3>
+          )}
+          {parsedSummary.paragraphs.map((paragraph) => (
+            <p>{paragraph}</p>
+          ))}
+        </div>
       </>
     )
   }
