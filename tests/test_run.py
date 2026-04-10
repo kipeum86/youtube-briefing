@@ -327,6 +327,78 @@ class TestRunOrchestrator:
         files = list(briefings_dir.glob("*.json"))
         assert len(files) == 4
 
+    def test_REGRESSION_per_channel_known_set_not_cross_contaminated(
+        self, tmp_path: Path, fake_summarizer, monkeypatch
+    ):
+        """REGRESSION: each channel sees only ITS OWN known video IDs.
+
+        The old code passed a global cross-channel known set, which caused
+        false-positive RSS saturation: any channel with zero history would
+        fail the "known ID in RSS?" check against another channel's IDs,
+        triggering needless yt-dlp catchup and English metadata.
+
+        We verify the wiring by asserting the known_video_ids each channel
+        sees matches only briefings from that channel that already exist on
+        disk.
+        """
+        config_path = _write_config(
+            tmp_path,
+            channels=[
+                {"id": "UCsT0YIqwnpJCM-mx7-gSA4Q", "name": "슈카월드", "slug": "shuka"},
+                {"id": "UCOB62fKRT7b73X7tRxMuN2g", "name": "박종훈", "slug": "parkjonghoon"},
+                {"id": "UCIUni4ScRp4mqPXsxy62L5w", "name": "언더스탠딩", "slug": "understanding"},
+            ],
+        )
+        briefings_dir = tmp_path / "briefings"
+        briefings_dir.mkdir(parents=True)
+
+        # Seed disk with one existing shuka briefing and one parkjonghoon briefing.
+        # understanding has zero history.
+        from pipeline.writers.json_store import write_briefing
+        from pipeline.models import Briefing, BriefingStatus, DiscoverySource
+
+        def _seed(video_id, slug, name):
+            write_briefing(
+                Briefing(
+                    video_id=video_id,
+                    channel_slug=slug,
+                    channel_name=name,
+                    title="seeded",
+                    published_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+                    video_url=f"https://www.youtube.com/watch?v={video_id}",
+                    thumbnail_url=f"https://i.ytimg.com/vi/{video_id}/hqdefault.jpg",
+                    duration_seconds=1000,
+                    discovery_source=DiscoverySource.RSS,
+                    status=BriefingStatus.OK,
+                    summary="seeded summary " * 50,
+                    failure_reason=None,
+                    generated_at=datetime(2026, 4, 1, tzinfo=timezone.utc),
+                    provider="gemini",
+                    model="gemini-2.5-flash",
+                    prompt_version="v1",
+                ),
+                briefings_dir,
+            )
+
+        _seed("shukaold001", "shuka", "슈카월드")
+        _seed("parkold0001", "parkjonghoon", "박종훈")
+
+        # Capture what each channel's discovery call sees.
+        seen_known: dict[str, set[str]] = {}
+
+        def discover_side_effect(channel_id, channel_slug, channel_name, known_video_ids, max_new_videos=None):
+            seen_known[channel_slug] = set(known_video_ids)
+            return []  # Pretend no new videos, we only care about the known set
+
+        monkeypatch.setattr(run, "discover_new_videos", discover_side_effect)
+
+        run.run(config_path=config_path, briefings_dir=briefings_dir)
+
+        # Each channel saw only ITS own ids — no cross-contamination.
+        assert seen_known["shuka"] == {"shukaold001"}
+        assert seen_known["parkjonghoon"] == {"parkold0001"}
+        assert seen_known["understanding"] == set()
+
     def test_REGRESSION_channel_rss_fail_does_not_halt_other_channels(
         self, tmp_path: Path, fake_summarizer, monkeypatch
     ):

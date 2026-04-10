@@ -13,6 +13,7 @@ from pipeline.fetchers.discovery import (
     _is_rss_saturated,
     _parse_rss_timestamp,
     _parse_ytdlp_output,
+    _parse_ytdlp_publish_date,
     discover_new_videos,
 )
 from pipeline.models import DiscoverySource, VideoMeta
@@ -137,6 +138,67 @@ class TestParseYtdlpOutput:
         ))
         assert len(videos) == 1
         assert videos[0].video_id == "vid123XYZ45"
+
+    def test_six_field_format_uses_release_timestamp_when_upload_date_na(self):
+        """yt-dlp --flat-playlist often returns NA for upload_date. The 5th
+        field (release_timestamp, unix epoch) is the reliable fallback."""
+        # 1712534400 = 2024-04-08T00:00:00 UTC
+        stdout = "vid123XYZ45|Valid title|NA|1000|1712534400|1712534400\n"
+        videos = list(_parse_ytdlp_output(
+            stdout, channel_id=VALID_CHANNEL_ID, channel_slug="shuka", channel_name="슈"
+        ))
+        assert len(videos) == 1
+        v = videos[0]
+        assert v.published_at.year == 2024
+        assert v.published_at.month == 4
+        assert v.published_at.day == 8
+
+    def test_six_field_format_timestamp_fallback_when_release_ts_na(self):
+        """Falls all the way through to the 6th field (timestamp)."""
+        stdout = "vid123XYZ45|Valid title|NA|1000|NA|1712534400\n"
+        videos = list(_parse_ytdlp_output(
+            stdout, channel_id=VALID_CHANNEL_ID, channel_slug="shuka", channel_name="슈"
+        ))
+        assert videos[0].published_at.year == 2024
+
+
+class TestParseYtdlpPublishDate:
+    """_parse_ytdlp_publish_date three-tier fallback.
+
+    Regression: when all yt-dlp fields came back NA or unparseable,
+    every catchup video got `now()` as its published_at, which corrupted
+    filename dates and the newest-first sort."""
+
+    def test_upload_date_yyyymmdd_is_primary(self):
+        dt = _parse_ytdlp_publish_date("20260408", "", "", "vid1")
+        assert dt == datetime(2026, 4, 8, tzinfo=timezone.utc)
+
+    def test_falls_through_to_release_timestamp(self):
+        # 1712534400 = 2024-04-08 UTC
+        dt = _parse_ytdlp_publish_date("NA", "1712534400", "", "vid1")
+        assert dt.year == 2024 and dt.month == 4 and dt.day == 8
+        assert dt.tzinfo is not None
+
+    def test_falls_through_to_timestamp(self):
+        dt = _parse_ytdlp_publish_date("NA", "NA", "1712534400", "vid1")
+        assert dt.year == 2024 and dt.month == 4 and dt.day == 8
+
+    def test_all_na_falls_back_to_now(self):
+        before = datetime.now(timezone.utc)
+        dt = _parse_ytdlp_publish_date("NA", "NA", "NA", "vid1")
+        after = datetime.now(timezone.utc)
+        assert before <= dt <= after
+
+    def test_empty_strings_fall_back_to_now(self):
+        before = datetime.now(timezone.utc)
+        dt = _parse_ytdlp_publish_date("", "", "", "vid1")
+        after = datetime.now(timezone.utc)
+        assert before <= dt <= after
+
+    def test_malformed_upload_date_falls_through(self):
+        """Bad YYYYMMDD falls through to the timestamp chain, not now()."""
+        dt = _parse_ytdlp_publish_date("not-a-date", "1712534400", "", "vid1")
+        assert dt.year == 2024
 
 
 class TestDiscoverNewVideos:

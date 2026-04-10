@@ -114,6 +114,41 @@ def list_processed_video_ids(briefings_dir: Path | str) -> set[str]:
     return ids
 
 
+def list_processed_video_ids_by_channel(
+    briefings_dir: Path | str,
+) -> dict[str, set[str]]:
+    """Return a per-channel mapping of processed video_ids.
+
+    Used by the discovery saturation check, which needs to know which videos
+    a SPECIFIC channel has already processed — not the global set across all
+    channels. The global set causes false-positive saturation: if any channel
+    has any processed videos, every other channel's "no match in RSS" check
+    fires saturation, triggering needless yt-dlp catchup.
+
+    Example:
+        {
+          "shuka":         {"NPL-NrvvK_w"},
+          "parkjonghoon":  {"abc123XYZ45", "def456..."},
+          "understanding": set(),
+        }
+    """
+    briefings_dir = Path(briefings_dir)
+    result: dict[str, set[str]] = {}
+    if not briefings_dir.exists():
+        return result
+
+    for entry in briefings_dir.iterdir():
+        if not entry.is_file() or entry.suffix != ".json":
+            continue
+        match = _FILENAME_PATTERN.match(entry.name)
+        if not match:
+            continue
+        slug = match.group("slug")
+        result.setdefault(slug, set()).add(match.group("video_id"))
+
+    return result
+
+
 def iter_briefings(briefings_dir: Path | str) -> Iterable[Briefing]:
     """Yield all briefings in the directory, sorted newest-first by filename.
 

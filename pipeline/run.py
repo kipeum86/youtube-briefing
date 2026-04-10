@@ -54,7 +54,11 @@ from pipeline.summarizers.base import (
     TransientSummarizerError,
     load_summarizer,
 )
-from pipeline.writers.json_store import list_processed_video_ids, write_briefing
+from pipeline.writers.json_store import (
+    list_processed_video_ids,
+    list_processed_video_ids_by_channel,
+    write_briefing,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -243,11 +247,14 @@ def run(
     # Per-channel discovery cap — how many NEW videos per channel per run
     max_per_channel = pipeline_cfg.get("max_new_videos_per_channel", 10)
 
-    known_ids = list_processed_video_ids(briefings_dir)
+    # Per-channel known set so the saturation check is scoped correctly.
+    # See list_processed_video_ids_by_channel for the rationale.
+    known_by_channel = list_processed_video_ids_by_channel(briefings_dir)
+    total_known = sum(len(v) for v in known_by_channel.values())
     logger.info(
-        "pipeline starting: %d channels, %d known videos, max %d new per channel%s%s",
+        "pipeline starting: %d channels, %d known videos total, max %d new per channel%s%s",
         len(config["channels"]),
-        len(known_ids),
+        total_known,
         max_per_channel,
         f", limit={limit}" if limit else "",
         f", only_channel={only_channel}" if only_channel else "",
@@ -264,12 +271,19 @@ def run(
             logger.debug("[%s] skipped (only_channel=%s)", channel_slug, only_channel)
             continue
 
+        # Only this channel's known IDs are passed in. Cross-channel known IDs
+        # would cause false-positive saturation: a video_id from another
+        # channel can never appear in this channel's RSS, so the "any RSS
+        # item match a known id?" check would always be no, triggering yt-dlp
+        # catchup unnecessarily.
+        channel_known = known_by_channel.get(channel_slug, set())
+
         try:
             new_videos = discover_new_videos(
                 channel_id=channel["id"],
                 channel_slug=channel_slug,
                 channel_name=channel["name"],
-                known_video_ids=known_ids,
+                known_video_ids=channel_known,
                 max_new_videos=max_per_channel,
             )
         except DiscoveryFailure as e:
@@ -315,7 +329,7 @@ def run(
                 total_skipped += 1
             else:
                 total_written += 1
-                known_ids.add(meta.video_id)  # avoid re-processing within same run
+                channel_known.add(meta.video_id)  # avoid re-processing within same run
 
         # Honor --limit at the outer loop too so we don't start a new channel
         if limit is not None and (total_written + total_skipped) >= limit:

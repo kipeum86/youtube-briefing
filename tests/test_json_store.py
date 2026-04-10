@@ -18,6 +18,7 @@ from pipeline.writers.json_store import (
     briefing_filename,
     iter_briefings,
     list_processed_video_ids,
+    list_processed_video_ids_by_channel,
     write_briefing,
 )
 
@@ -163,6 +164,49 @@ class TestListProcessedVideoIds:
 
         ids = list_processed_video_ids(tmp_path)
         assert ids == {"abc123XYZ45"}
+
+
+class TestListProcessedVideoIdsByChannel:
+    """Per-channel mapping — scopes the saturation check to one channel.
+
+    Regression: the global known set caused false-positive saturation across
+    channels. A video_id from channel A can never appear in channel B's RSS
+    feed, so including A's IDs in B's known set always fails the "any RSS
+    match?" check, triggering needless yt-dlp catchup on B.
+    """
+
+    def test_empty_dir_returns_empty_dict(self, tmp_path: Path):
+        assert list_processed_video_ids_by_channel(tmp_path) == {}
+
+    def test_nonexistent_dir_returns_empty_dict(self, tmp_path: Path):
+        assert list_processed_video_ids_by_channel(tmp_path / "not-there") == {}
+
+    def test_groups_video_ids_by_channel_slug(self, tmp_path: Path):
+        write_briefing(_make_ok_briefing(video_id="shuka0001XY", slug="shuka"), tmp_path)
+        write_briefing(_make_ok_briefing(video_id="shuka0002XY", slug="shuka"), tmp_path)
+        write_briefing(_make_ok_briefing(video_id="parkjh001XY", slug="parkjonghoon"), tmp_path)
+
+        by_channel = list_processed_video_ids_by_channel(tmp_path)
+        assert by_channel == {
+            "shuka": {"shuka0001XY", "shuka0002XY"},
+            "parkjonghoon": {"parkjh001XY"},
+        }
+
+    def test_channel_with_no_briefings_absent_from_result(self, tmp_path: Path):
+        """Unprocessed channels don't appear — callers use .get(slug, set())."""
+        write_briefing(_make_ok_briefing(video_id="shuka0001XY", slug="shuka"), tmp_path)
+
+        by_channel = list_processed_video_ids_by_channel(tmp_path)
+        assert "understanding" not in by_channel
+        assert by_channel.get("understanding", set()) == set()
+
+    def test_ignores_malformed_filenames(self, tmp_path: Path):
+        write_briefing(_make_ok_briefing(video_id="shuka0001XY", slug="shuka"), tmp_path)
+        (tmp_path / "totally-wrong.json").write_text("{}")
+        (tmp_path / "2026-04-09-incomplete.json").write_text("{}")
+
+        by_channel = list_processed_video_ids_by_channel(tmp_path)
+        assert by_channel == {"shuka": {"shuka0001XY"}}
 
 
 class TestIterBriefings:

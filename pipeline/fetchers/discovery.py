@@ -244,13 +244,26 @@ def _fetch_ytdlp_catchup(channel_id: str, channel_slug: str, channel_name: str) 
 
     Only called when RSS saturation is detected. N is bounded by
     YTDLP_CATCHUP_LIMIT to avoid pulling the entire channel history.
+
+    Notes:
+    - `--extractor-args "youtube:lang=ko"` forces YouTube to return Korean
+      metadata (titles, descriptions). Without this, yt-dlp running on a
+      non-Korean IP (e.g. a GitHub Actions runner in the US) gets the
+      English machine-translated titles, which then bake into briefings as
+      "Trump Strikes the Heart of Tehran..." instead of "트럼프, 테헤란
+      심장부 타격..".
+    - `release_timestamp` and `timestamp` give us a real publication time
+      when `upload_date` returns NA — `upload_date` is often blank in
+      `--flat-playlist` mode for non-Shorts videos.
     """
     url = f"https://www.youtube.com/channel/{channel_id}/videos"
     cmd = [
         "yt-dlp",
         "--flat-playlist",
         "--playlist-items", f"1-{YTDLP_CATCHUP_LIMIT}",
-        "--print", "%(id)s|%(title)s|%(upload_date)s|%(duration)s",
+        "--extractor-args", "youtube:lang=ko",
+        "--print",
+        "%(id)s|%(title)s|%(upload_date)s|%(duration)s|%(release_timestamp)s|%(timestamp)s",
         url,
     ]
     try:
@@ -280,12 +293,20 @@ def _parse_ytdlp_output(
     channel_slug: str,
     channel_name: str,
 ) -> Iterable[VideoMeta]:
-    """Parse yt-dlp's pipe-delimited output format into VideoMeta objects."""
+    """Parse yt-dlp's pipe-delimited output format into VideoMeta objects.
+
+    Expected format (6 pipe-delimited fields):
+        id|title|upload_date|duration|release_timestamp|timestamp
+
+    upload_date is often "NA" in --flat-playlist mode. release_timestamp
+    and timestamp are unix epochs that almost always have a value, so we
+    fall through to those when upload_date is missing.
+    """
     for line in stdout.strip().split("\n"):
         line = line.strip()
         if not line:
             continue
-        parts = line.split("|", 3)
+        parts = line.split("|", 5)
         if len(parts) < 3:
             logger.warning("malformed yt-dlp line: %r", line)
             continue
@@ -294,14 +315,12 @@ def _parse_ytdlp_output(
         title = parts[1].strip()
         upload_date_str = parts[2].strip()
         duration_str = parts[3].strip() if len(parts) > 3 else ""
+        release_ts_str = parts[4].strip() if len(parts) > 4 else ""
+        timestamp_str = parts[5].strip() if len(parts) > 5 else ""
 
-        try:
-            published_at = datetime.strptime(upload_date_str, "%Y%m%d").replace(
-                tzinfo=timezone.utc
-            )
-        except ValueError:
-            logger.warning("bad upload_date from yt-dlp: %r", upload_date_str)
-            published_at = datetime.now(timezone.utc)
+        published_at = _parse_ytdlp_publish_date(
+            upload_date_str, release_ts_str, timestamp_str, video_id
+        )
 
         try:
             duration_seconds: int | None = int(float(duration_str)) if duration_str and duration_str != "NA" else None
@@ -318,3 +337,47 @@ def _parse_ytdlp_output(
             discovery_source=DiscoverySource.YTDLP_CATCHUP,
             duration_seconds=duration_seconds,
         )
+
+
+def _parse_ytdlp_publish_date(
+    upload_date_str: str,
+    release_ts_str: str,
+    timestamp_str: str,
+    video_id: str,
+) -> datetime:
+    """Resolve a publish date from yt-dlp's three available sources.
+
+    yt-dlp's `--flat-playlist` mode populates these fields inconsistently:
+      - `upload_date` (YYYYMMDD) is often "NA" for non-Shorts videos.
+      - `release_timestamp` (unix epoch) is populated for scheduled/premiere uploads.
+      - `timestamp` (unix epoch) is populated for most regular uploads.
+
+    We try them in that order, falling back to `now()` only if all three fail.
+    Without this chain, every catchup video would claim `now()` as its
+    published_at, which breaks the filename date, the KST "today" grouping,
+    and the newest-first sort.
+    """
+    # Tier 1: upload_date as YYYYMMDD
+    if upload_date_str and upload_date_str != "NA":
+        try:
+            return datetime.strptime(upload_date_str, "%Y%m%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            logger.debug("[%s] upload_date %r not YYYYMMDD, trying timestamps", video_id, upload_date_str)
+
+    # Tier 2: release_timestamp (unix epoch)
+    for label, ts_str in (("release_timestamp", release_ts_str), ("timestamp", timestamp_str)):
+        if not ts_str or ts_str == "NA":
+            continue
+        try:
+            return datetime.fromtimestamp(int(float(ts_str)), tz=timezone.utc)
+        except (ValueError, OSError):
+            logger.debug("[%s] %s %r unparseable", video_id, label, ts_str)
+
+    logger.warning(
+        "[%s] yt-dlp published_at all-NA (upload_date=%r, release_ts=%r, timestamp=%r) — using now()",
+        video_id,
+        upload_date_str,
+        release_ts_str,
+        timestamp_str,
+    )
+    return datetime.now(timezone.utc)
