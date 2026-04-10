@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 #
-# install-cron.sh — Linux cron equivalent of install-launchd.sh.
+# install-cron.sh — Linux cron equivalent of install-launchd.sh (OPTIONAL).
 #
-# Same purpose as install-launchd.sh but for Linux. Cloud CI (GitHub Actions)
-# is not an option because YouTube blocks cloud runner IP ranges — see
-# install-launchd.sh header for the full rationale.
+# The primary automation is GitHub Actions. This script is for local
+# alternative execution on Linux hosts.
 #
 # Adds a cron entry that runs pipeline/run.py && commit-and-push.sh
 # on Mon/Wed/Fri at 06:00 KST (= 21:00 UTC Sun/Tue/Thu).

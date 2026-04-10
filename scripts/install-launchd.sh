@@ -1,13 +1,12 @@
 #!/usr/bin/env bash
 #
-# install-launchd.sh — macOS launchd timer installer (PRIMARY automation path).
+# install-launchd.sh — macOS launchd timer installer (OPTIONAL local path).
 #
-# This is the main way to automate the pipeline. The original plan considered
-# GitHub Actions as a cloud alternative, but the first Gate 0 run proved that
-# YouTube IP-blocks GitHub Actions runners entirely (transcript-api returns
-# IpBlocked, yt-dlp returns HTTP 429). The only path that actually works is
-# NotebookLM-py running from a residential IP with a logged-in Google session,
-# so the pipeline must run on your own Mac.
+# The primary automation is GitHub Actions (.github/workflows/pipeline.yml),
+# which uses the NOTEBOOKLM_AUTH_JSON secret to run NotebookLM from an
+# Ubuntu runner with an authenticated Google session. This launchd script
+# is kept as a local alternative for developers who want to run the
+# pipeline from their own machine instead of (or in addition to) CI.
 #
 # Creates ~/Library/LaunchAgents/com.kpsfamily.youtube-briefing.plist that runs
 # pipeline/run.py && scripts/commit-and-push.sh on Mon/Wed/Fri at 06:00 KST
