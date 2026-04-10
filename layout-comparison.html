@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>YouTube Briefing — 레이아웃 비교</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #f5f5f7;
+      --bg-secondary: #ffffff;
+      --bg-tertiary: #e5e5e7;
+      --border: #d1d1d6;
+      --text-primary: #1d1d1f;
+      --text-secondary: #86868b;
+      --text-tertiary: #aeaeb2;
+      --accent: #0071e3;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg-primary: #1d1d1f;
+        --bg-secondary: #2d2d2f;
+        --bg-tertiary: #3d3d3f;
+        --border: #424245;
+        --text-primary: #f5f5f7;
+        --text-secondary: #86868b;
+        --text-tertiary: #636366;
+        --accent: #0a84ff;
+      }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      padding: 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    h2 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.5rem; }
+    h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 0.25rem; }
+    .subtitle { color: var(--text-secondary); margin-bottom: 1.5rem; }
+
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 1.5rem; }
+    .card {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .card-image { background: var(--bg-tertiary); display: flex; align-items: stretch; justify-content: stretch; }
+    .card-image > div { width: 100%; }
+    .card-body { padding: 1rem 1.25rem; }
+    .card-body h3 { margin-bottom: 0.35rem; }
+    .card-body p { color: var(--text-secondary); font-size: 0.9rem; }
+
+    .context {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 2rem;
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+    }
+    .context strong { color: var(--text-primary); }
+    .context ul { margin: 0.5rem 0 0 1.25rem; }
+    .context li { margin-bottom: 0.25rem; }
+  </style>
+</head>
+<body>
+  <h2>YouTube Briefing — 어떤 레이아웃 방향이 더 끌려요?</h2>
+  <p class="subtitle">podcast-briefing (에디토리얼) vs ParlaWatch (대시보드) — 완전히 다른 두 방향</p>
+
+  <div class="context">
+    <strong>프로젝트 맥락</strong>
+    <ul>
+      <li>한국 경제/시사 유튜브 5개 채널(슈카월드, 언더스탠딩, 지구본연구소, 지식한방, 지식인사이드) 모니터링</li>
+      <li>GitHub Actions로 주 3회 자동 수집 → NotebookLM-py로 트랜스크립트 추출 → Claude로 심층 요약(500~1,000자)</li>
+      <li>목표: 바쁠 때 영상 안 보고 핵심만 글로 읽고, 관심 가는 것만 실제 영상 시청</li>
+      <li>Google Sheets = 컨트롤 패널/데이터 저장소, 웹페이지 = 읽는 인터페이스</li>
+      <li>한/영 토글 필요 (링크드인 공유용)</li>
+    </ul>
+  </div>
+
+  <div class="cards">
+    <div class="card">
+      <div class="card-image">
+        <div style="background:#fafaf8;color:#222;padding:24px;font-family:Georgia,serif;border:1px solid #e5e5e0">
+          <div style="text-align:center;border-bottom:2px solid #b44;padding-bottom:12px;margin-bottom:16px">
+            <div style="font-size:22px;font-weight:700;letter-spacing:1px">YOUTUBE BRIEFING</div>
+            <div style="font-size:11px;color:#888;margin-top:4px;text-transform:uppercase;letter-spacing:2px">주 3회 · 경제·시사 큐레이션</div>
+          </div>
+          <div style="font-size:10px;color:#b44;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">슈카월드 · 2026-04-09</div>
+          <div style="font-size:15px;font-weight:700;margin-bottom:6px;line-height:1.3">美 연준 금리인하 시그널, 시장 반응의 함정</div>
+          <div style="font-size:11px;color:#555;line-height:1.5">파월 의장의 최근 발언에서 주목할 점은 표면적 인하 신호가 아니라 그 이면의 조건부 단서들이다. 슈카월드는 이번 영상에서...</div>
+          <div style="font-size:10px;color:#999;margin-top:8px">▶ 영상 보기  ·  전문 복사  ·  Obsidian 저장</div>
+
+          <div style="border-top:1px solid #eee;margin-top:14px;padding-top:10px">
+            <div style="font-size:10px;color:#b44;text-transform:uppercase;letter-spacing:1.5px;margin-bottom:4px">언더스탠딩 · 2026-04-09</div>
+            <div style="font-size:15px;font-weight:700;margin-bottom:4px;line-height:1.3">中 디플레이션 장기화, 한국 수출에 미치는 파장</div>
+            <div style="font-size:11px;color:#555;line-height:1.5">중국 CPI가 5개월 연속 마이너스를 기록한 가운데...</div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>A. 에디토리얼 피드 (podcast-briefing 스타일)</h3>
+        <p>세로 1칼럼, 잡지/뉴스레터 감성. 글 읽는 경험 우선. 한 화면에 최근 브리핑이 순서대로 쌓이고, 각 항목은 제목 + 요약 프리뷰 + 액션 버튼. Georgia serif, 여백 많은 독서 레이아웃.</p>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-image">
+        <div style="background:#0f1419;color:#e4e7eb;padding:16px;font-family:-apple-system,sans-serif">
+          <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid #2d3748;padding-bottom:10px;margin-bottom:12px">
+            <div style="font-size:14px;font-weight:700">📺 YouTube Briefing</div>
+            <div style="font-size:10px;color:#718096">47 videos · 5 channels</div>
+          </div>
+          <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
+            <div style="background:#2563eb;color:#fff;padding:3px 8px;border-radius:12px;font-size:9px">All</div>
+            <div style="background:#2d3748;padding:3px 8px;border-radius:12px;font-size:9px">슈카월드</div>
+            <div style="background:#2d3748;padding:3px 8px;border-radius:12px;font-size:9px">언더스탠딩</div>
+            <div style="background:#2d3748;padding:3px 8px;border-radius:12px;font-size:9px">지구본연구소</div>
+            <div style="background:#2d3748;padding:3px 8px;border-radius:12px;font-size:9px">지식한방</div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            <div style="background:#1a202c;border:1px solid #2d3748;border-radius:6px;padding:10px">
+              <div style="font-size:8px;color:#63b3ed;margin-bottom:3px">슈카월드</div>
+              <div style="font-size:11px;font-weight:600;line-height:1.3;margin-bottom:4px">美 연준 금리인하 시그널</div>
+              <div style="font-size:9px;color:#a0aec0;line-height:1.4">파월 의장 발언 이면의 조건부 단서들...</div>
+            </div>
+            <div style="background:#1a202c;border:1px solid #2d3748;border-radius:6px;padding:10px">
+              <div style="font-size:8px;color:#63b3ed;margin-bottom:3px">언더스탠딩</div>
+              <div style="font-size:11px;font-weight:600;line-height:1.3;margin-bottom:4px">中 디플레 한국 수출 파장</div>
+              <div style="font-size:9px;color:#a0aec0;line-height:1.4">중국 CPI 5개월 연속 마이너스...</div>
+            </div>
+            <div style="background:#1a202c;border:1px solid #2d3748;border-radius:6px;padding:10px">
+              <div style="font-size:8px;color:#63b3ed;margin-bottom:3px">지구본연구소</div>
+              <div style="font-size:11px;font-weight:600;line-height:1.3;margin-bottom:4px">이스라엘-이란 확전 리스크</div>
+              <div style="font-size:9px;color:#a0aec0;line-height:1.4">호르무즈 해협 봉쇄 시나리오...</div>
+            </div>
+            <div style="background:#1a202c;border:1px solid #2d3748;border-radius:6px;padding:10px">
+              <div style="font-size:8px;color:#63b3ed;margin-bottom:3px">지식한방</div>
+              <div style="font-size:11px;font-weight:600;line-height:1.3;margin-bottom:4px">日 엔저와 가계부채</div>
+              <div style="font-size:9px;color:#a0aec0;line-height:1.4">엔캐리 트레이드 청산 가능성...</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body">
+        <h3>B. 대시보드 그리드 (ParlaWatch 스타일)</h3>
+        <p>2~3칼럼 카드 그리드, 다크 테마, 상단에 채널 필터 칩. 탐색/훑어보기 우선. 한눈에 많은 영상을 비교하고 골라 읽는 느낌. 클릭하면 모달 또는 상세 페이지로 전문 열림.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="subtitle" style="margin-top:2rem">링크드인에 자랑도 해야 하니까 첫인상도 중요. 어떤 방향이 더 끌리는지 피드백 부탁드립니다.</p>
+</body>
+</html>

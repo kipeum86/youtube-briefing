@@ -1,0 +1,48 @@
+# Secrets
+.env
+.env.local
+.notebooklm-cache/
+NOTEBOOKLM_AUTH_JSON
+
+# Local-only transcripts (see P6 — not committed due to ToS/copyright + repo bloat)
+data/transcripts/
+
+# Pipeline logs
+logs/
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyc
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.venv/
+venv/
+env/
+*.egg-info/
+dist/
+build/
+
+# Node / Astro
+node_modules/
+.astro/
+dist/
+.DS_Store
+
+# Eval outputs (human-review only, not committed)
+tests/eval/outputs/
+
+# Playwright
+playwright-report/
+playwright/.cache/
+test-results/
+
+# IDE
+.vscode/
+.idea/
+
+# Claude Code session state (not useful for other developers)
+.claude/
+.gstack/

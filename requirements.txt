@@ -1,0 +1,18 @@
+# Core
+pydantic>=2.7.0
+PyYAML>=6.0
+
+# Content fetching (3-tier transcript strategy)
+youtube-transcript-api>=1.0.0
+yt-dlp>=2026.1.0
+feedparser>=6.0.11
+# NotebookLM is optional fallback — only needed if NOTEBOOKLM_AUTH_JSON is set
+notebooklm-py>=0.1.0 ; python_version >= "3.11"
+
+# LLM provider
+google-genai>=0.3.0
+
+# Dev + tests
+pytest>=8.0
+pytest-cov>=5.0
+pytest-mock>=3.14

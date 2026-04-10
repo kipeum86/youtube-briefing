@@ -1,0 +1,49 @@
+# YouTube Briefing — pipeline + channel configuration
+#
+# Edit this file to change channels or pipeline settings. Channel IDs must be
+# the YouTube UC... format. Use `python scripts/resolve-channel-ids.py @handle`
+# to convert a @handle URL to an ID.
+
+pipeline:
+  summarizer:
+    provider: gemini
+    # Use the latest available Gemini Flash model string at the time of setup.
+    # "-latest" aliases and "-preview" models are fine per user decision (qualitative eval only).
+    model: gemini-2.5-flash
+    prompt_version: v1
+
+  # Summary length constraints (Korean characters)
+  summary_min_chars: 500
+  summary_max_chars: 1000
+
+  # Local cron schedule: Mon/Wed/Fri 06:00 KST (= 21:00 UTC Sun/Tue/Thu)
+  cron: "0 21 * * 0,2,4"
+
+  # Local-only directories (gitignored)
+  transcript_cache_dir: data/transcripts
+  log_dir: logs
+
+  # Retry policy for transient transcript/summarize failures
+  retry_max_attempts: 2
+  retry_backoff_seconds: 5
+
+channels:
+  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@kpunch
+    name: "박종훈의 지식한방"
+    slug: parkjonghoon
+
+  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@syukaworld
+    name: "슈카월드"
+    slug: shuka
+
+  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@understanding
+    name: "언더스탠딩"
+    slug: understanding
+
+  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@지식인사이드
+    name: "지식 인사이드"
+    slug: jisik-inside
+
+  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@globelab
+    name: "최준영 박사의 지구본 연구소"
+    slug: globelab

@@ -1,0 +1,38 @@
+[project]
+name = "youtube-briefing"
+version = "0.1.0"
+description = "Korean economics/current-affairs YouTube auto-summarizer"
+requires-python = ">=3.11"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--tb=short",
+    "--cov=pipeline",
+    "--cov-report=term-missing",
+    # Scaffolding gate: 60%. Raise to 80% once integration tests for the three
+    # transcript-extractor tier helpers (_try_transcript_api, _try_notebooklm,
+    # _try_ytdlp) are added with proper library mocks. See test plan.
+    "--cov-fail-under=60",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning",
+]
+
+[tool.coverage.run]
+source = ["pipeline"]
+omit = [
+    "pipeline/__init__.py",
+    "tests/*",
+]
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "raise NotImplementedError",
+    "if __name__ == .__main__.:",
+    "if TYPE_CHECKING:",
+]
