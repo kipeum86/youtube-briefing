@@ -128,20 +128,24 @@ jobs:
         id: changes
         # Note: `git diff --quiet data/briefings/` only checks tracked files;
         # new briefings are untracked, so we must use git status --porcelain.
+        # We avoid `|| echo 0` with grep because on a match count of 0 it
+        # produces a multi-line output that breaks $GITHUB_OUTPUT parsing.
+        # Using awk tallies instead.
         run: |
           set -euo pipefail
           STATUS=$(git status --porcelain data/briefings/ | grep -E '\.json$' || true)
           if [ -z "$STATUS" ]; then
             echo "has_changes=false" >> "$GITHUB_OUTPUT"
             echo "No new or modified briefings."
-          else
-            NEW=$(echo "$STATUS" | grep -c '^??' || echo 0)
-            MOD=$(echo "$STATUS" | grep -c '^.M' || echo 0)
-            echo "has_changes=true" >> "$GITHUB_OUTPUT"
-            echo "new_count=$NEW" >> "$GITHUB_OUTPUT"
-            echo "mod_count=$MOD" >> "$GITHUB_OUTPUT"
-            echo "Found $NEW new + $MOD modified briefings."
+            exit 0
           fi
+          # awk counts without the grep trailing-newline problem
+          NEW=$(echo "$STATUS" | awk '/^\?\?/ {n++} END {print n+0}')
+          MOD=$(echo "$STATUS" | awk '/^.M/ {n++} END {print n+0}')
+          echo "has_changes=true" >> "$GITHUB_OUTPUT"
+          echo "new_count=$NEW" >> "$GITHUB_OUTPUT"
+          echo "mod_count=$MOD" >> "$GITHUB_OUTPUT"
+          echo "Found $NEW new + $MOD modified briefings."
 
       - name: Commit and push new briefings
         if: steps.changes.outputs.has_changes == 'true' && github.event.inputs.dry_run != 'true'
