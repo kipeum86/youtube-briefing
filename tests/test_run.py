@@ -343,7 +343,7 @@ class TestRunOrchestrator:
         )
         briefings_dir = tmp_path / "briefings"
 
-        def discover_side_effect(channel_id, channel_slug, channel_name, known_video_ids):
+        def discover_side_effect(channel_id, channel_slug, channel_name, known_video_ids, max_new_videos=None):
             if channel_slug == "ch2":
                 raise DiscoveryFailure(f"[{channel_slug}] RSS 404")
             return [_make_meta(f"{channel_slug}_v1", slug=channel_slug, channel_name=channel_name)]

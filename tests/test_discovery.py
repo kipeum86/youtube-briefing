@@ -152,6 +152,53 @@ class TestDiscoverNewVideos:
         )
         assert {v.video_id for v in new} == {"new01", "new02"}
 
+    def test_max_new_videos_caps_rss_path(self, monkeypatch):
+        """max_new_videos caps the RSS-returned new list to the N newest items."""
+        # 15 RSS items, none known → all 15 are "new"
+        rss_videos = [_make_meta(f"rssv{i:03d}") for i in range(15)]
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids=set(),
+            max_new_videos=10,
+        )
+        # Should return the 10 newest (first 10 from the already-sorted list)
+        assert len(new) == 10
+        assert [v.video_id for v in new] == [f"rssv{i:03d}" for i in range(10)]
+
+    def test_max_new_videos_none_means_no_cap(self, monkeypatch):
+        """None (default) returns all new videos unfiltered."""
+        rss_videos = [_make_meta(f"rssv{i:03d}") for i in range(15)]
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids=set(),
+            max_new_videos=None,
+        )
+        assert len(new) == 15
+
+    def test_max_new_videos_caps_catchup_path(self, monkeypatch):
+        """The cap also applies when the catchup path runs."""
+        rss_videos = [_make_meta(f"rssv{i:03d}") for i in range(15)]  # saturated
+        catchup_videos = [_make_meta(f"catch{i:03d}") for i in range(30)]
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+        monkeypatch.setattr(discovery, "_fetch_ytdlp_catchup", lambda *a, **kw: catchup_videos)
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids={"ancient999"},  # forces saturation → catchup path
+            max_new_videos=10,
+        )
+        assert len(new) == 10
+
     def test_rss_saturation_triggers_ytdlp_catchup(self, monkeypatch):
         # RSS returns 15 videos, none match known_video_ids → saturated
         rss_videos = [_make_meta(f"rssv{i:03d}") for i in range(15)]

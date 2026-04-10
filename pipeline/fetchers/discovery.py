@@ -39,19 +39,29 @@ def discover_new_videos(
     channel_slug: str,
     channel_name: str,
     known_video_ids: set[str],
+    max_new_videos: int | None = None,
 ) -> list[VideoMeta]:
     """Find videos from a channel that are not yet in known_video_ids.
 
     Two-tier strategy:
-      1. Try RSS first (fast, cheap).
+      1. Try RSS first (fast, cheap). YouTube's RSS feed always returns up
+         to ~15 items (YouTube-side cap, not ours).
       2. If RSS is saturated (our newest-known not in response AND response
          has exactly 15 items), fall back to yt-dlp catchup for this channel.
+
+    After filtering out already-processed videos, optionally cap the result
+    to the `max_new_videos` most recent items. This is useful for keeping
+    scheduled runs from processing bursts of 15 videos per channel — a more
+    reasonable default is 10, leaving headroom for channels that occasionally
+    post multiple videos in a day.
 
     Args:
         channel_id: YouTube UC... channel ID
         channel_slug: Project-local slug (e.g. "shuka")
         channel_name: Human-readable name (e.g. "슈카월드")
         known_video_ids: set of video_ids already processed (from glob of data/briefings/)
+        max_new_videos: optional cap on how many NEW videos to return per run.
+            None (default) means no cap (use whatever RSS gives us, up to 15).
 
     Returns:
         List of new VideoMeta objects, ordered newest-first. Empty list if nothing new.
@@ -73,13 +83,15 @@ def discover_new_videos(
         # Check for RSS window saturation
         saturated = _is_rss_saturated(rss_videos, known_video_ids)
         if not saturated:
+            capped = _apply_cap(new_rss, max_new_videos)
             logger.info(
-                "[%s] RSS discovery: %d total, %d new",
+                "[%s] RSS discovery: %d total, %d new%s",
                 channel_slug,
                 len(rss_videos),
                 len(new_rss),
+                f" (capped to {len(capped)})" if len(capped) < len(new_rss) else "",
             )
-            return new_rss
+            return capped
 
         logger.info(
             "[%s] RSS window saturated (%d items, none known) — triggering yt-dlp catchup",
@@ -100,16 +112,30 @@ def discover_new_videos(
             channel_slug,
             e,
         )
-        return [v for v in rss_videos if v.video_id not in known_video_ids]
+        fallback = [v for v in rss_videos if v.video_id not in known_video_ids]
+        return _apply_cap(fallback, max_new_videos)
 
     new_catchup = [v for v in catchup_videos if v.video_id not in known_video_ids]
+    capped = _apply_cap(new_catchup, max_new_videos)
     logger.info(
-        "[%s] yt-dlp catchup: %d total, %d new",
+        "[%s] yt-dlp catchup: %d total, %d new%s",
         channel_slug,
         len(catchup_videos),
         len(new_catchup),
+        f" (capped to {len(capped)})" if len(capped) < len(new_catchup) else "",
     )
-    return new_catchup
+    return capped
+
+
+def _apply_cap(videos: list[VideoMeta], cap: int | None) -> list[VideoMeta]:
+    """Return the most-recent N videos from the list, or the full list if cap is None/0.
+
+    Videos are assumed to be sorted newest-first by the caller (which matches
+    the order RSS and yt-dlp catchup both return them).
+    """
+    if cap is None or cap <= 0 or len(videos) <= cap:
+        return videos
+    return videos[:cap]
 
 
 # ---------------------------------------------------------------------------

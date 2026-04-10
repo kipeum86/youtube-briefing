@@ -240,11 +240,15 @@ def run(
     summarizer.min_chars = pipeline_cfg.get("summary_min_chars", 700)
     summarizer.max_chars = pipeline_cfg.get("summary_max_chars", 1200)
 
+    # Per-channel discovery cap — how many NEW videos per channel per run
+    max_per_channel = pipeline_cfg.get("max_new_videos_per_channel", 10)
+
     known_ids = list_processed_video_ids(briefings_dir)
     logger.info(
-        "pipeline starting: %d channels, %d known videos%s%s",
+        "pipeline starting: %d channels, %d known videos, max %d new per channel%s%s",
         len(config["channels"]),
         len(known_ids),
+        max_per_channel,
         f", limit={limit}" if limit else "",
         f", only_channel={only_channel}" if only_channel else "",
     )
@@ -266,6 +270,7 @@ def run(
                 channel_slug=channel_slug,
                 channel_name=channel["name"],
                 known_video_ids=known_ids,
+                max_new_videos=max_per_channel,
             )
         except DiscoveryFailure as e:
             logger.error("[%s] discovery failed, skipping channel: %s", channel_slug, e)

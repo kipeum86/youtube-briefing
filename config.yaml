@@ -16,6 +16,13 @@ pipeline:
   summary_min_chars: 700
   summary_max_chars: 1200
 
+  # Per-channel discovery cap: how many NEW videos per channel per run.
+  # YouTube's RSS feed returns ~15 items; we cap below that so a single
+  # run doesn't burn through a burst of uploads. 10 is the sweet spot —
+  # enough headroom for channels that post 2-3 videos/day between runs,
+  # not so many that 3-day steady-state processing balloons.
+  max_new_videos_per_channel: 10
+
   # Local cron schedule: Mon/Wed/Fri 06:00 KST (= 21:00 UTC Sun/Tue/Thu)
   cron: "0 21 * * 0,2,4"
 
