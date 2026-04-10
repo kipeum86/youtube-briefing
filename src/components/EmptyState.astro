@@ -1,0 +1,28 @@
+---
+/**
+ * EmptyState — fresh-clone onboarding card.
+ *
+ * Shown on `/` when data/briefings/ has zero files. Uses the same type scale
+ * as briefing cards; no box, no card — just typographic rhythm.
+ */
+---
+
+<section class="empty-state" aria-labelledby="empty-title">
+  <h2 id="empty-title">아직 브리핑이 없어요</h2>
+  <p>
+    이 저장소를 방금 clone 했다면<br />
+    아래 7단계로 첫 브리핑을 생성하세요.
+  </p>
+
+  <ol>
+    <li><code>.env</code> 에 <code>GEMINI_API_KEY</code> 설정</li>
+    <li><code>yt-dlp</code> 설치 (<code>brew install yt-dlp</code>)</li>
+    <li><code>config.yaml</code> 에 채널 ID 추가</li>
+    <li><code>scripts/resolve-channel-ids.py</code> 로 UC... ID 조회</li>
+    <li>NotebookLM 로그인 (선택)</li>
+    <li><code>python pipeline/run.py</code></li>
+    <li><code>npm run dev</code></li>
+  </ol>
+
+  <a href="https://github.com" class="cta">README 보기 →</a>
+</section>

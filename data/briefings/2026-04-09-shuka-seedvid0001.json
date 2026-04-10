@@ -1,0 +1,18 @@
+{
+  "video_id": "seedvid0001",
+  "channel_slug": "shuka",
+  "channel_name": "슈카월드",
+  "title": "美 연준 금리인하 시그널, 시장 반응의 함정",
+  "published_at": "2026-04-09T03:00:00+00:00",
+  "video_url": "https://www.youtube.com/watch?v=seedvid0001",
+  "thumbnail_url": "https://i.ytimg.com/vi/seedvid0001/hqdefault.jpg",
+  "duration_seconds": 1847,
+  "discovery_source": "rss",
+  "status": "ok",
+  "summary": "파월 의장의 최근 발언에서 주목할 점은 표면적 인하 신호가 아니라 그 이면의 조건부 단서들이다. 슈카월드는 이번 영상에서 시장이 '75bp 인하'를 기정사실로 받아들인 순간부터 장기 금리가 오히려 상승하기 시작한 역설을 지적한다. 연준의 도트 플롯 변화, 10년물 금리 움직임, 달러 인덱스 반등이 모두 같은 방향을 가리킨다. 시장이 성장률 전망을 상향하면서 인플레이션 리스크가 부활했기 때문이다. 역사적으로도 1995년 그린스펀의 연착륙 국면 초기에 유사한 패턴이 관찰됐다. 결론은 이번 인하 사이클은 과거와 달리 주식시장에 지속적인 상승 모멘텀을 주기 어렵다는 것. 단기 트레이딩 관점에서는 변동성 확대에 대비한 포지션 관리가 핵심이다.",
+  "failure_reason": null,
+  "generated_at": "2026-04-09T21:15:32+00:00",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

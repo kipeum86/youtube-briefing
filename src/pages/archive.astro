@@ -1,0 +1,129 @@
+---
+/**
+ * Archive (`/archive`) — weekly groups of all briefings.
+ *
+ * Groups briefings by ISO week, newest week first. Uses the same
+ * BriefingCard + ChannelFilter components as the index page so behavior
+ * stays consistent.
+ */
+import type { CollectionEntry } from "astro:content";
+import { getCollection } from "astro:content";
+import Base from "../layouts/Base.astro";
+import BriefingCard from "../components/BriefingCard.astro";
+import ChannelFilter from "../components/ChannelFilter.astro";
+
+type BriefingEntry = CollectionEntry<"briefing">;
+
+const allBriefings = await getCollection("briefing");
+allBriefings.sort(
+  (a: BriefingEntry, b: BriefingEntry) =>
+    b.data.published_at.getTime() - a.data.published_at.getTime(),
+);
+
+function isoWeekKey(date: Date): string {
+  const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNr = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  const year = target.getUTCFullYear();
+  target.setUTCMonth(0, 1);
+  if (target.getUTCDay() !== 4) {
+    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
+  }
+  const week = 1 + Math.ceil((firstThursday - target.valueOf()) / 604800000);
+  return `${year}-W${String(week).padStart(2, "0")}`;
+}
+
+// Group by ISO week
+const grouped = new Map<string, BriefingEntry[]>();
+for (const b of allBriefings) {
+  const key = isoWeekKey(b.data.published_at);
+  if (!grouped.has(key)) grouped.set(key, []);
+  grouped.get(key)!.push(b);
+}
+const weekKeys = Array.from(grouped.keys()).sort().reverse();
+
+const channelOrder = [
+  { slug: "parkjonghoon", name: "박종훈" },
+  { slug: "shuka", name: "슈카월드" },
+  { slug: "understanding", name: "언더스탠딩" },
+  { slug: "jisik-inside", name: "지식인사이드" },
+  { slug: "globelab", name: "지구본연구소" },
+];
+
+function formatKstDot(date: Date): string {
+  const kstMs = date.getTime() + 9 * 60 * 60 * 1000;
+  const k = new Date(kstMs);
+  const y = k.getUTCFullYear();
+  const m = String(k.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(k.getUTCDate()).padStart(2, "0");
+  return `${y}.${m}.${d}`;
+}
+
+const newestDate = allBriefings[0]?.data.published_at ?? new Date();
+const issueWeek = weekKeys[0]?.split("-")[1] ?? "W01";
+const issueDate = formatKstDot(newestDate);
+---
+
+<Base title="Archive · YouTube Briefing" activeTab="archive" issueWeek={issueWeek} issueDate={issueDate}>
+  <ChannelFilter channels={channelOrder} />
+
+  <main id="main">
+    <h1 class="visually-hidden">아카이브</h1>
+
+    {weekKeys.length === 0 ? (
+      <p class="preview" style="padding: 80px 0; text-align: center;">
+        아직 아카이브된 브리핑이 없습니다.
+      </p>
+    ) : (
+      weekKeys.map((key) => (
+        <section class="week-group">
+          <h2>{key}</h2>
+          {grouped.get(key)!.map((b: BriefingEntry) => <BriefingCard briefing={b} />)}
+        </section>
+      ))
+    )}
+  </main>
+</Base>
+
+<script>
+  // Same client behavior as index: expand, filter, read tracking.
+  // Kept inline here so each page is self-contained.
+  (() => {
+    // Expand/collapse
+    document.querySelectorAll<HTMLButtonElement>("[data-expand-button]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const article = btn.closest<HTMLElement>("article.briefing");
+        if (!article) return;
+        const expanded = article.dataset.expanded === "true";
+        article.dataset.expanded = expanded ? "false" : "true";
+        btn.setAttribute("aria-expanded", expanded ? "false" : "true");
+        btn.textContent = expanded ? "펼쳐보기" : "접기";
+      });
+    });
+
+    // Read tracking
+    const readKey = "yb-read-ids";
+    const readIds = new Set<string>(JSON.parse(localStorage.getItem(readKey) || "[]"));
+    document.querySelectorAll<HTMLElement>("article.briefing[data-video-id]").forEach((article) => {
+      const videoId = article.dataset.videoId;
+      if (videoId && readIds.has(videoId)) {
+        article.classList.remove("unread");
+        article.classList.add("read");
+      }
+    });
+
+    // Channel filter
+    const params = new URLSearchParams(window.location.search);
+    const activeChannel = params.get("channel") || "all";
+    document.querySelectorAll<HTMLElement>("article.briefing").forEach((article) => {
+      const slug = article.dataset.channel;
+      article.style.display = activeChannel === "all" || slug === activeChannel ? "" : "none";
+    });
+    document.querySelectorAll<HTMLAnchorElement>("[data-channel-filter] a").forEach((chip) => {
+      const isActive = chip.dataset.slug === activeChannel;
+      chip.setAttribute("aria-current", isActive ? "page" : "");
+      chip.setAttribute("aria-checked", isActive ? "true" : "false");
+    });
+  })();
+</script>

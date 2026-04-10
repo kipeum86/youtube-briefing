@@ -1,0 +1,103 @@
+---
+/**
+ * Base layout — shared shell for `/` and `/archive`.
+ *
+ * Provides:
+ *   - HTML head with meta + Paperlogy preload
+ *   - Skip link + semantic landmarks
+ *   - Left-column issue rail (desktop ≥960px)
+ *   - Masthead with brand + tabs
+ *   - Footer with cadence signal
+ *
+ * Slots:
+ *   - default: the main feed/archive content
+ *
+ * Props:
+ *   - title: <title> element content
+ *   - activeTab: "recent" | "archive" — controls aria-current on tabs
+ *   - issueWeek: the ISO week number for the rail (e.g. "W15")
+ *   - issueDate: the ISO date for the rail (e.g. "2026.04.10")
+ */
+import "../styles/global.css";
+
+interface Props {
+  title: string;
+  activeTab: "recent" | "archive";
+  issueWeek: string;
+  issueDate: string;
+}
+
+const { title, activeTab, issueWeek, issueDate } = Astro.props;
+
+// Compute WEEKDAY in Korean from issueDate string (YYYY.MM.DD)
+function weekdayKor(dateStr: string): string {
+  const [y, m, d] = dateStr.split(".").map(Number);
+  if (!y || !m || !d) return "";
+  const date = new Date(Date.UTC(y, m - 1, d));
+  // Map JS getUTCDay (Sun=0) to Korean short
+  const korDays = ["SUN", "MON", "TUE", "WED", "THU", "FRI", "SAT"];
+  return korDays[date.getUTCDay()] ?? "";
+}
+
+const weekday = weekdayKor(issueDate);
+const volNumber = "VOL·" + issueWeek.replace("W", "");
+const base = import.meta.env.BASE_URL.replace(/\/$/, "");
+---
+
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <meta name="description" content="한국 경제·시사 유튜브 5개 채널의 주 3회 심층 요약" />
+    <title>{title}</title>
+    <link
+      rel="preload"
+      href={`${base}/fonts/Paperlogy-5Medium.woff2`}
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+    <link
+      rel="preload"
+      href={`${base}/fonts/Paperlogy-9Black.woff2`}
+      as="font"
+      type="font/woff2"
+      crossorigin="anonymous"
+    />
+  </head>
+  <body>
+    <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+
+    <div class="shell">
+      <aside class="rail" aria-hidden="true">
+        <span class="issue">{issueWeek}</span>
+        <span>{weekday}</span>
+        <span>{issueDate.replace(/^\d{4}\./, "")}</span>
+        <span class="vol">{volNumber}</span>
+      </aside>
+
+      <div class="wrap">
+        <header class="masthead">
+          <div class="brand">
+            <a href={`${base}/`}>
+              <div class="mark">YOUTUBE BRIEFING</div>
+              <div class="issue-line">{issueWeek} · {weekday} · {issueDate}</div>
+            </a>
+          </div>
+          <nav class="tabs" aria-label="주 메뉴">
+            <a href={`${base}/`} aria-current={activeTab === "recent" ? "page" : undefined}>최근</a>
+            <a href={`${base}/archive`} aria-current={activeTab === "archive" ? "page" : undefined}>아카이브</a>
+          </nav>
+        </header>
+
+        <slot />
+
+        <footer class="site-footer">
+          <span>다음 업데이트 · 월·수·금 06:00 KST</span>
+          <span>YOUTUBE BRIEFING · {volNumber} · 2026</span>
+        </footer>
+      </div>
+    </div>
+  </body>
+</html>

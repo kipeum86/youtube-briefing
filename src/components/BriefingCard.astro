@@ -1,0 +1,106 @@
+---
+/**
+ * BriefingCard — single briefing article.
+ *
+ * Renders OK briefings with inline expand/collapse, and failed briefings as
+ * a de-emphasized card with the failure reason. The expand button is a
+ * semantic <button aria-expanded>, not a link.
+ *
+ * Props:
+ *   - briefing: the Briefing data (from astro:content)
+ *   - isFirst: show the unread rule on the first card of the feed (heuristic
+ *              until localStorage read-tracking kicks in on the client)
+ */
+
+import type { CollectionEntry } from "astro:content";
+
+interface Props {
+  briefing: CollectionEntry<"briefing">;
+}
+
+const { briefing } = Astro.props;
+const data = briefing.data;
+
+// Format published_at as "2026.04.09" (KST)
+function formatKstDate(iso: Date): string {
+  const kstMs = iso.getTime() + 9 * 60 * 60 * 1000;
+  const k = new Date(kstMs);
+  const y = k.getUTCFullYear();
+  const m = String(k.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(k.getUTCDate()).padStart(2, "0");
+  return `${y}.${m}.${d}`;
+}
+
+const dateStr = formatKstDate(data.published_at);
+const isFailed = data.status === "failed";
+const cardId = `briefing-${data.video_id}`;
+
+// Failure reason → Korean display string (mirrors Pydantic FailureReason enum)
+const failureMessages: Record<string, string> = {
+  session_expired: "일시적 인증 문제",
+  video_removed: "영상이 삭제되었거나 비공개",
+  members_only: "멤버십 전용 영상",
+  age_restricted: "연령 제한 영상",
+  empty_transcript: "음성 없음 또는 추출 불가",
+  transcripts_disabled: "자막이 비활성화된 영상",
+  summarizer_refused: "요약 처리 실패",
+  wrong_language: "요약 언어 오류",
+};
+
+const failureDisplay = isFailed && data.failure_reason
+  ? failureMessages[data.failure_reason] ?? data.failure_reason
+  : null;
+
+// First 180 chars of summary for the collapsed preview
+function previewText(summary: string | null): string {
+  if (!summary) return "";
+  if (summary.length <= 180) return summary;
+  return summary.slice(0, 180) + "…";
+}
+---
+
+<article
+  class:list={["briefing", "unread", { failed: isFailed }]}
+  id={`v-${data.video_id}`}
+  data-channel={data.channel_slug}
+  data-video-id={data.video_id}
+  data-expanded="false"
+  aria-labelledby={`${cardId}-title`}>
+  <div class="meta">
+    <span class="channel">{data.channel_name}</span>
+    <span class="sep">/</span>
+    <span class="date">{dateStr}</span>
+    {isFailed && <span class="status-failed">요약 실패</span>}
+  </div>
+
+  <h2 id={`${cardId}-title`}>{data.title}</h2>
+
+  {
+    isFailed ? (
+      <p class="preview">
+        이 영상은 요약하지 못했습니다. 원본 영상에서 직접 확인하세요.
+        {failureDisplay && ` (이유: ${failureDisplay})`}
+      </p>
+    ) : (
+      <>
+        <p class="preview">{previewText(data.summary)}</p>
+        <div class="full-summary">{data.summary}</div>
+      </>
+    )
+  }
+
+  <div class="actions">
+    {
+      !isFailed && (
+        <button
+          type="button"
+          aria-expanded="false"
+          aria-controls={`${cardId}-body`}
+          data-expand-button>
+          펼쳐보기
+        </button>
+      )
+    }
+    <a href={data.video_url} target="_blank" rel="noopener noreferrer">원본 영상</a>
+  </div>
+</article>

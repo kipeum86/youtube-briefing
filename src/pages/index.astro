@@ -1,0 +1,219 @@
+---
+/**
+ * Recent feed (`/`) — latest 7 days of briefings.
+ *
+ * Loads all briefings via astro:content, filters to the last 7 days,
+ * sorts newest-first, and renders a card stack. Empty state kicks in if
+ * there are no briefings at all (fresh clone scenario).
+ */
+import type { CollectionEntry } from "astro:content";
+import { getCollection } from "astro:content";
+import Base from "../layouts/Base.astro";
+import BriefingCard from "../components/BriefingCard.astro";
+import ChannelFilter from "../components/ChannelFilter.astro";
+import EmptyState from "../components/EmptyState.astro";
+
+type BriefingEntry = CollectionEntry<"briefing">;
+
+// Load + sort briefings (newest first)
+const allBriefings = await getCollection("briefing");
+allBriefings.sort(
+  (a: BriefingEntry, b: BriefingEntry) =>
+    b.data.published_at.getTime() - a.data.published_at.getTime(),
+);
+
+// Filter to the last 7 days for the recent feed
+const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+let recentBriefings = allBriefings.filter(
+  (b: BriefingEntry) => b.data.published_at.getTime() >= sevenDaysAgo,
+);
+
+// Seed data is dated 2026-04-05 through 2026-04-09, which is older than
+// "now" in real-world time. During local dev/CI builds, if 7-day filter
+// yields 0 but we have seed data, show the latest 10 anyway so the seed
+// renders. Production pipeline runs will keep data fresh naturally.
+if (recentBriefings.length === 0 && allBriefings.length > 0) {
+  recentBriefings = allBriefings.slice(0, 10);
+}
+
+// Compute channel list for the filter chips (deterministic order from config)
+const channelOrder = [
+  { slug: "parkjonghoon", name: "박종훈" },
+  { slug: "shuka", name: "슈카월드" },
+  { slug: "understanding", name: "언더스탠딩" },
+  { slug: "jisik-inside", name: "지식인사이드" },
+  { slug: "globelab", name: "지구본연구소" },
+];
+
+// Dim chips that have no briefings in the current view
+const presentSlugs = new Set(
+  recentBriefings.map((b: BriefingEntry) => b.data.channel_slug),
+);
+const zeroCountSlugs = channelOrder
+  .map((c) => c.slug)
+  .filter((slug) => !presentSlugs.has(slug));
+
+// Compute ISO week number from the newest briefing (or today if empty)
+function isoWeekNumber(date: Date): string {
+  const target = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+  const dayNr = (target.getUTCDay() + 6) % 7;
+  target.setUTCDate(target.getUTCDate() - dayNr + 3);
+  const firstThursday = target.valueOf();
+  target.setUTCMonth(0, 1);
+  if (target.getUTCDay() !== 4) {
+    target.setUTCMonth(0, 1 + ((4 - target.getUTCDay()) + 7) % 7);
+  }
+  const weekNum = 1 + Math.ceil((firstThursday - target.valueOf()) / (604800000));
+  return `W${String(weekNum).padStart(2, "0")}`;
+}
+
+function formatKstDot(date: Date): string {
+  const kstMs = date.getTime() + 9 * 60 * 60 * 1000;
+  const k = new Date(kstMs);
+  const y = k.getUTCFullYear();
+  const m = String(k.getUTCMonth() + 1).padStart(2, "0");
+  const d = String(k.getUTCDate()).padStart(2, "0");
+  return `${y}.${m}.${d}`;
+}
+
+const newestDate = recentBriefings[0]?.data.published_at ?? new Date();
+const issueWeek = isoWeekNumber(newestDate);
+const issueDate = formatKstDot(newestDate);
+---
+
+<Base title="YouTube Briefing" activeTab="recent" issueWeek={issueWeek} issueDate={issueDate}>
+  {
+    allBriefings.length === 0 ? (
+      <main id="main">
+        <EmptyState />
+      </main>
+    ) : (
+      <>
+        <div class="intro" data-intro>
+          <p>
+            <b>5개 한국 경제·시사 유튜브 채널</b>을 월·수·금 아침마다 500–1,000자 한국어로 요약하는
+            에디토리얼 피드. NotebookLM + Gemini로 자동 생성.
+          </p>
+          <button type="button" aria-label="소개 닫기" data-dismiss-intro>×</button>
+        </div>
+
+        <ChannelFilter channels={channelOrder} zeroCountSlugs={zeroCountSlugs} />
+
+        <main id="main">
+          <h1 class="visually-hidden">최신 브리핑</h1>
+
+          <div class="unread-ribbon" role="status" aria-live="polite" data-unread-ribbon>
+            {recentBriefings.length}건의 브리핑
+          </div>
+
+          {recentBriefings.map((b: BriefingEntry) => <BriefingCard briefing={b} />)}
+
+          <div class="feed-end">
+            <a href="archive/">이전 주 보기 →</a>
+          </div>
+        </main>
+      </>
+    )
+  }
+</Base>
+
+<script>
+  // Inline expand/collapse, dismissible intro, localStorage read tracking
+  (() => {
+    // --- Dismiss intro ---
+    const introKey = "yb-intro-dismissed";
+    const intro = document.querySelector<HTMLElement>("[data-intro]");
+    if (intro && localStorage.getItem(introKey) === "true") {
+      intro.remove();
+    }
+    document.querySelector<HTMLButtonElement>("[data-dismiss-intro]")?.addEventListener("click", () => {
+      intro?.remove();
+      localStorage.setItem(introKey, "true");
+    });
+
+    // --- Expand/collapse cards ---
+    document.querySelectorAll<HTMLButtonElement>("[data-expand-button]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const article = btn.closest<HTMLElement>("article.briefing");
+        if (!article) return;
+        const expanded = article.dataset.expanded === "true";
+        article.dataset.expanded = expanded ? "false" : "true";
+        btn.setAttribute("aria-expanded", expanded ? "false" : "true");
+        btn.textContent = expanded ? "펼쳐보기" : "접기";
+
+        if (!expanded) {
+          // Mark as read when expanded
+          const videoId = article.dataset.videoId;
+          if (videoId) markRead(videoId, article);
+        }
+      });
+    });
+
+    // --- localStorage read tracking ---
+    const readKey = "yb-read-ids";
+    const readIds = new Set<string>(JSON.parse(localStorage.getItem(readKey) || "[]"));
+
+    function markRead(videoId: string, article: HTMLElement) {
+      readIds.add(videoId);
+      localStorage.setItem(readKey, JSON.stringify([...readIds]));
+      article.classList.remove("unread");
+      article.classList.add("read");
+      updateUnreadRibbon();
+    }
+
+    function updateUnreadRibbon() {
+      const ribbon = document.querySelector<HTMLElement>("[data-unread-ribbon]");
+      if (!ribbon) return;
+      const unreadCards = document.querySelectorAll("article.briefing.unread").length;
+      if (unreadCards === 0) {
+        ribbon.style.display = "none";
+      } else {
+        ribbon.textContent = `${unreadCards}건의 새로운 브리핑`;
+      }
+    }
+
+    // Apply read state on load
+    document.querySelectorAll<HTMLElement>("article.briefing[data-video-id]").forEach((article) => {
+      const videoId = article.dataset.videoId;
+      if (videoId && readIds.has(videoId)) {
+        article.classList.remove("unread");
+        article.classList.add("read");
+      }
+    });
+    updateUnreadRibbon();
+
+    // --- Clicking "원본 영상" also marks as read ---
+    document.querySelectorAll<HTMLAnchorElement>("article.briefing .actions a").forEach((link) => {
+      link.addEventListener("click", () => {
+        const article = link.closest<HTMLElement>("article.briefing");
+        if (!article) return;
+        const videoId = article.dataset.videoId;
+        if (videoId) markRead(videoId, article);
+      });
+    });
+
+    // --- Channel filter (URL query + client-side toggle) ---
+    const params = new URLSearchParams(window.location.search);
+    const activeChannel = params.get("channel") || "all";
+    document.querySelectorAll<HTMLElement>("article.briefing").forEach((article) => {
+      const slug = article.dataset.channel;
+      article.style.display = activeChannel === "all" || slug === activeChannel ? "" : "none";
+    });
+
+    // Highlight the active chip
+    document.querySelectorAll<HTMLAnchorElement>("[data-channel-filter] a").forEach((chip) => {
+      const isActive = chip.dataset.slug === activeChannel;
+      chip.setAttribute("aria-current", isActive ? "page" : "");
+      chip.setAttribute("aria-checked", isActive ? "true" : "false");
+    });
+
+    // --- Deep-link expand ---
+    if (window.location.hash.startsWith("#v-")) {
+      const target = document.querySelector<HTMLElement>(window.location.hash);
+      if (target) {
+        target.querySelector<HTMLButtonElement>("[data-expand-button]")?.click();
+        target.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }
+  })();
+</script>

@@ -1,0 +1,145 @@
+{
+  "$defs": {
+    "BriefingStatus": {
+      "description": "Deterministic outcome of processing a single video.",
+      "enum": [
+        "ok",
+        "failed"
+      ],
+      "title": "BriefingStatus",
+      "type": "string"
+    },
+    "DiscoverySource": {
+      "description": "How a video was discovered by the pipeline.",
+      "enum": [
+        "rss",
+        "ytdlp_catchup"
+      ],
+      "title": "DiscoverySource",
+      "type": "string"
+    },
+    "FailureReason": {
+      "description": "Stable enum of permanent failure causes.\n\nTransient failures (network timeouts, rate limits) do NOT write placeholder\nJSONs and therefore do not appear here. See\npipeline/fetchers/transcript_extractor.py's classification logic.",
+      "enum": [
+        "session_expired",
+        "video_removed",
+        "members_only",
+        "age_restricted",
+        "empty_transcript",
+        "transcripts_disabled",
+        "summarizer_refused",
+        "wrong_language"
+      ],
+      "title": "FailureReason",
+      "type": "string"
+    }
+  },
+  "description": "Complete briefing record — one per file in data/briefings/.\n\nInvariants enforced by cross-field validators:\n  - status=OK requires a non-empty summary\n  - status=FAILED requires failure_reason to be populated\n  - FAILED briefings leave summary null",
+  "properties": {
+    "video_id": {
+      "maxLength": 20,
+      "minLength": 5,
+      "title": "Video Id",
+      "type": "string"
+    },
+    "channel_slug": {
+      "title": "Channel Slug",
+      "type": "string"
+    },
+    "channel_name": {
+      "title": "Channel Name",
+      "type": "string"
+    },
+    "title": {
+      "title": "Title",
+      "type": "string"
+    },
+    "published_at": {
+      "format": "date-time",
+      "title": "Published At",
+      "type": "string"
+    },
+    "video_url": {
+      "format": "uri",
+      "maxLength": 2083,
+      "minLength": 1,
+      "title": "Video Url",
+      "type": "string"
+    },
+    "thumbnail_url": {
+      "format": "uri",
+      "maxLength": 2083,
+      "minLength": 1,
+      "title": "Thumbnail Url",
+      "type": "string"
+    },
+    "duration_seconds": {
+      "title": "Duration Seconds",
+      "type": "integer"
+    },
+    "discovery_source": {
+      "$ref": "#/$defs/DiscoverySource"
+    },
+    "status": {
+      "$ref": "#/$defs/BriefingStatus"
+    },
+    "summary": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Summary"
+    },
+    "failure_reason": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/FailureReason"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
+    },
+    "generated_at": {
+      "format": "date-time",
+      "title": "Generated At",
+      "type": "string"
+    },
+    "provider": {
+      "title": "Provider",
+      "type": "string"
+    },
+    "model": {
+      "title": "Model",
+      "type": "string"
+    },
+    "prompt_version": {
+      "title": "Prompt Version",
+      "type": "string"
+    }
+  },
+  "required": [
+    "video_id",
+    "channel_slug",
+    "channel_name",
+    "title",
+    "published_at",
+    "video_url",
+    "thumbnail_url",
+    "duration_seconds",
+    "discovery_source",
+    "status",
+    "generated_at",
+    "provider",
+    "model",
+    "prompt_version"
+  ],
+  "title": "Briefing",
+  "type": "object"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "youtube-briefing",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro check && astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "test:e2e": "playwright test"
+  },
+  "dependencies": {
+    "astro": "^5.1.0",
+    "@astrojs/check": "^0.9.0",
+    "typescript": "^5.6.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.48.0"
+  }
+}

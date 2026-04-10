@@ -1,0 +1,68 @@
+---
+/**
+ * Channel filter chip row.
+ *
+ * Renders as role=radiogroup with one chip per channel + an "전체" (All) chip.
+ * Chips with zero matching briefings in the current view get a dim style and
+ * aria-disabled.
+ *
+ * Client-side filtering happens in src/scripts/client.js via URL query params.
+ * SSG initial render shows the "전체" state as active.
+ *
+ * Props:
+ *   - channels: list of {slug, name} to render
+ *   - activeSlug: which chip should show as active (defaults to "all")
+ *   - zeroCountSlugs: slugs that should render as dim (no briefings in the current view)
+ */
+
+interface Channel {
+  slug: string;
+  name: string;
+}
+
+interface Props {
+  channels: Channel[];
+  activeSlug?: string;
+  zeroCountSlugs?: string[];
+}
+
+const { channels, activeSlug = "all", zeroCountSlugs = [] } = Astro.props;
+
+function chipClass(slug: string): string | undefined {
+  return zeroCountSlugs.includes(slug) ? "dim" : undefined;
+}
+
+function chipAria(slug: string): "true" | undefined {
+  return zeroCountSlugs.includes(slug) ? "true" : undefined;
+}
+
+function chipCurrent(slug: string): "page" | undefined {
+  return slug === activeSlug ? "page" : undefined;
+}
+---
+
+<nav class="chips" role="radiogroup" aria-label="채널 필터" data-channel-filter>
+  <a
+    href="?channel=all"
+    data-slug="all"
+    role="radio"
+    aria-checked={activeSlug === "all" ? "true" : "false"}
+    aria-current={chipCurrent("all")}>
+    전체
+  </a>
+  {
+    channels.map((ch) => (
+      <a
+        href={`?channel=${ch.slug}`}
+        data-slug={ch.slug}
+        role="radio"
+        aria-checked={ch.slug === activeSlug ? "true" : "false"}
+        aria-current={chipCurrent(ch.slug)}
+        aria-disabled={chipAria(ch.slug)}
+        class={chipClass(ch.slug)}
+        title={zeroCountSlugs.includes(ch.slug) ? "이번 주 새 브리핑 없음" : undefined}>
+        {ch.name}
+      </a>
+    ))
+  }
+</nav>
