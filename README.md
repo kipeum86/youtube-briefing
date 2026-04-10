@@ -18,13 +18,16 @@ Fork-friendly: clone, add your Gemini API key, edit the channel list, run the pi
 700–1,200자 한국어 심층 요약으로 정리해서 에디토리얼 피드로 보여준다.
 
 - **타겟 채널:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소
-- **업데이트:** 주 3회 (Mon/Wed/Fri 06:00 KST, GitHub Actions cron)
-- **스택:** Python 파이프라인 (GitHub Actions) + Astro 정적 사이트 (GitHub Pages)
+- **업데이트:** 주 3회 (Mon/Wed/Fri 06:00 KST, 로컬 launchd)
+- **스택:** Python 파이프라인 (로컬 Mac + launchd) + Astro 정적 사이트 (GitHub Pages)
 - **저장소:** JSON 파일 in git (Google Sheets, DB 없음)
 
-## 설정 (5단계)
+> **왜 로컬 실행인가?** 처음엔 GitHub Actions 로 돌리려 했는데, YouTube 가
+> 클라우드 runner IP 전체를 차단함 (`youtube-transcript-api → IpBlocked`,
+> `yt-dlp → HTTP 429`). 유일하게 작동하는 경로는 로그인된 Google 세션 기반의
+> NotebookLM 이라서, 파이프라인이 네 Mac 에서 돌아야 함. Gate 0 에서 실측 검증.
 
-클라우드 (GitHub Actions) 에서 자동으로 돌아가는 모드가 디폴트. 로컬 설치는 개발/디버깅 용.
+## 설정 (7단계)
 
 1. **포크 또는 클론**
    ```bash
@@ -32,60 +35,66 @@ Fork-friendly: clone, add your Gemini API key, edit the channel list, run the pi
    cd youtube-briefing
    ```
 
-2. **Gemini API 키 발급 + GitHub Secret 등록**
-   ```bash
-   # 키 발급: https://aistudio.google.com/apikey (무료)
-   gh secret set GEMINI_API_KEY -R YOUR_USERNAME/youtube-briefing
-   # 프롬프트에 키 붙여넣기
-   ```
-
-3. **채널 ID 조회 + config.yaml 수정** — 로컬에서 한 번만
+2. **의존성 설치**
    ```bash
    python -m venv .venv && source .venv/bin/activate
    pip install -r requirements.txt
-   brew install yt-dlp  # 또는 pipx install yt-dlp
-
-   python scripts/resolve-channel-ids.py https://www.youtube.com/@syukaworld
-   # 출력: UCxxxxxxxxxxxxxxxx — 이걸 config.yaml 의 각 채널 id: 에 붙여넣기
+   npm install
+   brew install yt-dlp           # macOS (Linux: pipx install yt-dlp)
    ```
-   수정된 `config.yaml` 을 커밋 + 푸시.
 
-4. **GitHub Pages 활성화** — 저장소 Settings → Pages → Source: "GitHub Actions"
-
-5. **첫 파이프라인 실행** — 수동 트리거로 검증
+3. **Gemini API 키**
    ```bash
-   gh workflow run pipeline -R YOUR_USERNAME/youtube-briefing
-   gh run watch
+   cp .env.example .env
+   # .env 열고 GEMINI_API_KEY= 뒤에 키 붙여넣기
+   # 키 발급: https://aistudio.google.com/apikey (무료)
    ```
 
-   끝. 이후엔 Mon/Wed/Fri 06:00 KST 에 자동 실행됨. 새 briefing 생기면
-   자동으로 커밋 + 푸시 + Pages 재배포. 사이트에서 확인:
-   `https://YOUR_USERNAME.github.io/youtube-briefing/`
+4. **NotebookLM 로그인** — 이게 primary 트랜스크립트 소스니까 필수
+   ```bash
+   notebooklm login
+   # → 브라우저가 열림 → Google 로그인 → 세션이
+   #   ~/.notebooklm/storage_state.json 에 저장됨
+   # 세션은 수 주 단위로 만료. 실패하기 시작하면 재실행.
+   ```
 
-### (선택) NotebookLM 폴백 — 봇 차단 대비
+5. **채널 ID 조회 + config.yaml 수정**
+   ```bash
+   python scripts/resolve-channel-ids.py https://www.youtube.com/@syukaworld
+   # 출력: UCxxxxxxxxxxxxxxxx — 이걸 config.yaml 각 채널 id: 에 붙여넣기
+   ```
 
-`youtube-transcript-api` 와 `yt-dlp` 두 레이어로 거의 모든 영상을 커버하지만,
-만약 YouTube 가 봇 차단을 강화해서 두 레이어 모두 실패하기 시작하면 NotebookLM 을
-3차 폴백으로 활성화 가능:
+6. **첫 실행 + 미리보기**
+   ```bash
+   # 작은 스모크 테스트 먼저
+   python pipeline/run.py --only-channel shuka --limit 1
 
-```bash
-# 로컬에서 NotebookLM 세션을 Playwright storage_state.json 으로 export
-# (자세한 절차는 notebooklm-py 문서 참조)
-gh secret set NOTEBOOKLM_AUTH_JSON < storage_state.json \
-  -R YOUR_USERNAME/youtube-briefing
-```
+   # 성공하면 전체 실행 (첫 실행은 ~50분, 75개 영상)
+   python pipeline/run.py
 
-파이프라인 코드는 변경 없음 — `NOTEBOOKLM_AUTH_JSON` 환경변수가 설정되면
-자동으로 2차 폴백이 활성화됨. 세션 만료 시 주기적으로 재등록 필요.
+   # 미리보기
+   npm run dev    # localhost:4321
+   ```
+
+7. **자동화 설치** — Mon/Wed/Fri 06:00 KST 에 자동 실행
+   ```bash
+   ./scripts/install-launchd.sh   # macOS
+   ./scripts/install-cron.sh      # Linux
+   ```
+
+   설치 후:
+   - launchd 상태 확인: `launchctl list | grep youtube-briefing`
+   - 강제 즉시 실행: `launchctl start com.kpsfamily.youtube-briefing`
+   - 로그 확인: `tail -f logs/pipeline.log`
+   - 일시 정지: `launchctl unload ~/Library/LaunchAgents/com.kpsfamily.youtube-briefing.plist`
 
 ## 아키텍처
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  GitHub Actions                                              │
+│  LOCAL (your Mac)                                            │
 │                                                              │
-│  .github/workflows/pipeline.yml                              │
-│  (cron: Mon/Wed/Fri 06:00 KST or manual dispatch)            │
+│  launchd timer (Mon/Wed/Fri 06:00 KST)                       │
 │       │                                                      │
 │       ▼                                                      │
 │  pipeline/run.py                                             │
@@ -93,22 +102,29 @@ gh secret set NOTEBOOKLM_AUTH_JSON < storage_state.json \
 │       ├─ fetchers/discovery.py  (YouTube RSS → yt-dlp        │
 │       │                          catchup)                    │
 │       │                                                      │
-│       ├─ fetchers/transcript_extractor.py                    │
-│       │   ├─ tier 1: youtube-transcript-api (primary)        │
-│       │   ├─ tier 2: notebooklm-py (optional, if secret set) │
-│       │   └─ tier 3: yt-dlp VTT (last resort)                │
+│       ├─ fetchers/transcript_extractor.py (3-tier)           │
+│       │   ├─ tier 1: notebooklm-py (PRIMARY, required)       │
+│       │   │          uses ~/.notebooklm/storage_state.json   │
+│       │   ├─ tier 2: youtube-transcript-api (safety net)     │
+│       │   └─ tier 3: yt-dlp VTT (safety net)                 │
 │       │                                                      │
 │       ├─ summarizers/gemini_flash.py                         │
-│       │   (needs GEMINI_API_KEY secret)                      │
+│       │   (700-1,200 Korean chars, prompt v1)                │
 │       │                                                      │
 │       └─ writers/json_store.py                               │
 │              │                                                │
 │              ▼                                                │
-│       data/briefings/*.json  → git commit + push             │
-│                                                               │
+│       data/briefings/*.json  (ok + failed placeholders)      │
+│       data/transcripts/*.txt (cached, gitignored)            │
 │              │                                                │
-│              │  workflow-triggered dispatch                   │
-│              ▼                                                │
+│       scripts/commit-and-push.sh                             │
+│              │                                                │
+└──────────────┼───────────────────────────────────────────────┘
+               │ git push origin main
+               ▼
+┌─────────────────────────────────────────────────────────────┐
+│  GitHub (thin CI, only for deploy)                           │
+│                                                              │
 │  .github/workflows/pages.yml                                 │
 │       │                                                      │
 │       ▼                                                      │
@@ -120,25 +136,15 @@ gh secret set NOTEBOOKLM_AUTH_JSON < storage_state.json \
 └─────────────────────────────────────────────────────────────┘
 ```
 
-### 로컬 개발 / 디버깅
+### 트러블슈팅
 
-프로덕션은 GitHub Actions 에서 돌지만 로컬에서 직접 실행도 가능:
-
-```bash
-# 한 번 셋업
-python -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-npm install
-brew install yt-dlp
-
-cp .env.example .env
-# .env 에 GEMINI_API_KEY 붙여넣기
-
-# 로컬 실행
-python pipeline/run.py --dry-run   # 검색만, 호출 없음
-python pipeline/run.py              # 실제 실행 + data/briefings/ 에 쓰기
-npm run dev                          # localhost:4321 에서 미리보기
-```
+- **`NotebookLM session file not found`** → `notebooklm login` 다시 실행
+- **`NotebookLM session expired`** → 같음, 세션이 몇 주마다 만료됨
+- **모든 tier 가 transient 실패** → YouTube 자체 문제, 잠시 후 재시도
+- **`GEMINI_API_KEY is not set`** → `.env` 확인, venv 활성화 확인
+- **맥이 꺼져 있어서 scheduled 실행 놓침** → 다음 실행에서 RSS catchup + yt-dlp fallback 으로 자동 복구 (새 영상 15개 이하까지는)
+- **파이프라인 로그** → `tail -f logs/pipeline.log`
+- **launchd 로그** → `tail -f logs/launchd.out logs/launchd.err`
 
 ## 디자인
 

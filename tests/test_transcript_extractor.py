@@ -227,14 +227,36 @@ class TestExtractTranscript:
         assert result.text.startswith("캐시된 트랜스크립트 내용")
 
     def test_no_cache_no_tiers_raises_permanent(self, tmp_path: Path, monkeypatch):
-        """When all tiers return None and no cache, raise PermanentTranscriptFailure."""
+        """When all three tiers return None and no cache, raise PermanentTranscriptFailure."""
         # Monkey-patch all three tier helpers to return None
-        monkeypatch.setattr(tx, "_try_transcript_api", lambda vid: None)
         monkeypatch.setattr(tx, "_try_notebooklm", lambda vid: None)
+        monkeypatch.setattr(tx, "_try_transcript_api", lambda vid: None)
         monkeypatch.setattr(tx, "_try_ytdlp", lambda vid: None)
-        # Also clear NOTEBOOKLM_AUTH_JSON env so tier 2 is skipped entirely
-        monkeypatch.delenv("NOTEBOOKLM_AUTH_JSON", raising=False)
 
         with pytest.raises(PermanentTranscriptFailure) as exc_info:
             extract_transcript("vid999", cache_dir=tmp_path)
         assert exc_info.value.failure_code == "empty_transcript"
+
+    def test_notebooklm_tier_1_succeeds_bypasses_other_tiers(self, tmp_path: Path, monkeypatch):
+        """NotebookLM (tier 1) succeeds → transcript-api and yt-dlp are never called."""
+        call_log = []
+
+        def notebooklm_ok(vid):
+            call_log.append("notebooklm")
+            return TranscriptResult(text="한국어 트랜스크립트 " * 20, source="notebooklm")
+
+        def transcript_api_called(vid):
+            call_log.append("transcript_api")
+            return TranscriptResult(text="should not be reached", source="transcript_api_auto")
+
+        def ytdlp_called(vid):
+            call_log.append("ytdlp")
+            return TranscriptResult(text="should not be reached", source="ytdlp_auto")
+
+        monkeypatch.setattr(tx, "_try_notebooklm", notebooklm_ok)
+        monkeypatch.setattr(tx, "_try_transcript_api", transcript_api_called)
+        monkeypatch.setattr(tx, "_try_ytdlp", ytdlp_called)
+
+        result = extract_transcript("vid001", cache_dir=tmp_path)
+        assert result.source == "notebooklm"
+        assert call_log == ["notebooklm"]  # tier 2 and 3 never reached

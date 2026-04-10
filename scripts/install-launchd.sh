@@ -1,15 +1,13 @@
 #!/usr/bin/env bash
 #
-# install-launchd.sh — macOS launchd timer installer (LEGACY / OPTIONAL).
+# install-launchd.sh — macOS launchd timer installer (PRIMARY automation path).
 #
-# ⚠️  DEPRECATED as the primary automation path. The recommended setup uses
-# .github/workflows/pipeline.yml which runs on GitHub Actions and does not
-# depend on your Mac being awake. This launchd script is kept for:
-#
-#   1. Developers who prefer local-only execution (privacy, no GitHub secrets)
-#   2. Running the pipeline from a dedicated always-on Mac that has a
-#      logged-in NotebookLM Google session (for use cases where tier 2 is
-#      required and cannot be moved to CI).
+# This is the main way to automate the pipeline. The original plan considered
+# GitHub Actions as a cloud alternative, but the first Gate 0 run proved that
+# YouTube IP-blocks GitHub Actions runners entirely (transcript-api returns
+# IpBlocked, yt-dlp returns HTTP 429). The only path that actually works is
+# NotebookLM-py running from a residential IP with a logged-in Google session,
+# so the pipeline must run on your own Mac.
 #
 # Creates ~/Library/LaunchAgents/com.kpsfamily.youtube-briefing.plist that runs
 # pipeline/run.py && scripts/commit-and-push.sh on Mon/Wed/Fri at 06:00 KST

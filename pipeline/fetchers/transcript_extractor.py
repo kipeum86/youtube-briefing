@@ -1,16 +1,22 @@
 """Three-tier YouTube transcript extraction.
 
-Strategy (inherited from parlawatch/pipeline/subtitle_extractor.py, adapted for
-the youtube-briefing deterministic failure contract):
+Tier order (revised 2026-04-10 after the initial Gate 0 run proved
+youtube-transcript-api gets IP-blocked on GitHub Actions runners):
 
-  1. youtube-transcript-api  — primary, pure HTTP, no browser
-  2. notebooklm-py           — optional, only if NOTEBOOKLM_AUTH_JSON env var is set
-  3. yt-dlp VTT download     — last resort, subprocess-based
+  1. notebooklm-py           — PRIMARY, required. Rides on a logged-in Google
+                               session, not anonymous HTTP, so YouTube treats
+                               it as a real user. Session lives in
+                               ~/.notebooklm/storage_state.json locally (set up
+                               via `notebooklm login`) or in the
+                               NOTEBOOKLM_AUTH_JSON env var for deployments.
+  2. youtube-transcript-api  — secondary safety net. Works from residential
+                               IPs, fails from cloud provider IP ranges.
+  3. yt-dlp VTT download     — tertiary safety net. Same IP concerns as tier 2.
 
-Each tier returns the full transcript text on success. On failure, the next tier
-is tried. If all three fail, we classify the result as either TransientFailure
-(retry next run) or PermanentFailure (write failed placeholder per deterministic
-failure contract in the design doc).
+Each tier returns the full transcript text on success. Transient failures fall
+through to the next tier. Permanent failures (members-only, video removed,
+session expired) propagate immediately without trying lower tiers — they are
+legitimate "cannot be processed" signals for the operator to act on.
 
 Caches successful transcripts to {transcript_cache_dir}/{video_id}.txt so
 re-summarization after prompt changes does not require re-fetching.
@@ -68,8 +74,26 @@ class TranscriptResult:
 def extract_transcript(video_id: str, cache_dir: Path | str | None = None) -> TranscriptResult:
     """Extract the Korean transcript for a YouTube video.
 
-    Tries three tiers in order. First success wins. All three failing raises
-    TranscriptFailure (either Transient or Permanent depending on classification).
+    Tier ordering (revised 2026-04-10 after Gate 0 failure):
+      tier 1: notebooklm-py         — primary, must work for most videos
+      tier 2: youtube-transcript-api — secondary, only succeeds from non-CI IPs
+      tier 3: yt-dlp VTT download   — tertiary, same IP-block concerns as tier 2
+
+    The reorder happened because YouTube blocks GitHub Actions runner IPs
+    entirely — transcript-api and yt-dlp both fail with 429/IpBlocked. The
+    only reliable path is NotebookLM via its unofficial browser-automation
+    API, which rides on a logged-in Google session instead of anonymous HTTP.
+
+    NotebookLM is mandatory now, not optional. It reads its session from
+    ~/.notebooklm/storage_state.json by default (set up via `notebooklm login`).
+    If the session is missing, tier 1 raises a permanent failure before we
+    even try the other tiers — forcing the operator to re-auth rather than
+    silently degrading.
+
+    First tier that produces >=100 chars wins. Transient failures in one tier
+    fall through to the next. Permanent failures (members-only, removed)
+    propagate immediately without trying lower tiers — they are legitimate
+    "this video cannot be processed" signals.
 
     Args:
         video_id: 11-char YouTube video ID (e.g. "abc123XYZ45")
@@ -89,11 +113,11 @@ def extract_transcript(video_id: str, cache_dir: Path | str | None = None) -> Tr
         if cached.exists() and cached.stat().st_size > 100:
             logger.info("transcript cache hit: %s", video_id)
             text = cached.read_text(encoding="utf-8")
-            return TranscriptResult(text=text, source="transcript_api_stenographer")
+            return TranscriptResult(text=text, source="notebooklm")
 
-    # Tier 1: youtube-transcript-api
+    # Tier 1: notebooklm-py (primary)
     try:
-        result = _try_transcript_api(video_id)
+        result = _try_notebooklm(video_id)
         if result is not None:
             _cache_transcript(result.text, video_id, cache_dir)
             return result
@@ -102,21 +126,18 @@ def extract_transcript(video_id: str, cache_dir: Path | str | None = None) -> Tr
             raise PermanentTranscriptFailure(video_id, e.reason, e.code)
         logger.info("tier 1 transient: %s — trying tier 2", e.reason)
 
-    # Tier 2: notebooklm-py (optional)
-    if os.environ.get("NOTEBOOKLM_AUTH_JSON", "").strip():
-        try:
-            result = _try_notebooklm(video_id)
-            if result is not None:
-                _cache_transcript(result.text, video_id, cache_dir)
-                return result
-        except _ClassifiedError as e:
-            if not e.transient:
-                raise PermanentTranscriptFailure(video_id, e.reason, e.code)
-            logger.info("tier 2 transient: %s — trying tier 3", e.reason)
-    else:
-        logger.debug("NOTEBOOKLM_AUTH_JSON not set — skipping tier 2")
+    # Tier 2: youtube-transcript-api (secondary, likely IP-blocked from CI)
+    try:
+        result = _try_transcript_api(video_id)
+        if result is not None:
+            _cache_transcript(result.text, video_id, cache_dir)
+            return result
+    except _ClassifiedError as e:
+        if not e.transient:
+            raise PermanentTranscriptFailure(video_id, e.reason, e.code)
+        logger.info("tier 2 transient: %s — trying tier 3", e.reason)
 
-    # Tier 3: yt-dlp VTT
+    # Tier 3: yt-dlp VTT (tertiary, same IP concerns)
     try:
         result = _try_ytdlp(video_id)
         if result is not None:
@@ -128,10 +149,9 @@ def extract_transcript(video_id: str, cache_dir: Path | str | None = None) -> Tr
         logger.info("tier 3 transient: %s", e.reason)
 
     # All three tiers returned None without raising classified errors.
-    # This means "no transcript available" → permanent failure.
     raise PermanentTranscriptFailure(
         video_id,
-        "No transcript available from any source (transcript-api, notebooklm, yt-dlp)",
+        "No transcript available from any source (notebooklm, transcript-api, yt-dlp)",
         failure_code="empty_transcript",
     )
 
@@ -178,7 +198,7 @@ def _classify_transcript_api_exception(exc: Exception, video_id: str) -> _Classi
 
 
 # ---------------------------------------------------------------------------
-# Tier 1: youtube-transcript-api
+# Tier 2: youtube-transcript-api
 # ---------------------------------------------------------------------------
 
 
@@ -215,7 +235,7 @@ def _try_transcript_api(video_id: str) -> TranscriptResult | None:
         pass
 
     source: Source = "transcript_api_auto" if is_generated else "transcript_api_stenographer"
-    logger.info("tier 1 transcript-api: %d chars (%s)", len(text), source)
+    logger.info("tier 2 transcript-api: %d chars (%s)", len(text), source)
     return TranscriptResult(text=text, source=source)
 
 
@@ -241,21 +261,33 @@ def _transcript_to_text(transcript) -> str | None:
 
 
 # ---------------------------------------------------------------------------
-# Tier 2: notebooklm-py (optional)
+# Tier 1: notebooklm-py (primary, required)
 # ---------------------------------------------------------------------------
 
 
 def _try_notebooklm(video_id: str) -> TranscriptResult | None:
-    """Attempt transcript via NotebookLM unofficial API.
+    """Attempt transcript via NotebookLM unofficial API (primary tier).
 
-    Only runs when NOTEBOOKLM_AUTH_JSON env var is set. The caller is expected
-    to gate this tier on env var presence — we still guard here for safety.
+    Reads the Playwright storage state from NOTEBOOKLM_AUTH_JSON env var if
+    set, otherwise from ~/.notebooklm/storage_state.json (the default used
+    by `notebooklm login` on the local machine).
+
+    Failure modes:
+      - notebooklm-py not installed → permanent failure (operator fix)
+      - session file missing → permanent failure (operator must re-auth)
+      - session expired (401/auth errors) → permanent failure
+      - network timeout → transient failure, let lower tiers try
+      - YouTube-side "video not accessible" → permanent failure
+      - returned text <100 chars → returns None, let lower tiers try
     """
     try:
         from notebooklm import NotebookLMClient
-    except ImportError:
-        logger.warning("notebooklm-py not installed — skipping tier 2")
-        return None
+    except ImportError as e:
+        raise _ClassifiedError(
+            "notebooklm-py not installed. Install via: pip install notebooklm-py",
+            transient=False,
+            code="session_expired",
+        ) from e
 
     async def _extract() -> str | None:
         async with await NotebookLMClient.from_storage() as client:
@@ -273,20 +305,49 @@ def _try_notebooklm(video_id: str) -> TranscriptResult | None:
 
     try:
         text = asyncio.run(_extract())
+    except FileNotFoundError as exc:
+        # `NotebookLMClient.from_storage()` raises this when the session file
+        # is missing at ~/.notebooklm/storage_state.json
+        raise _ClassifiedError(
+            f"NotebookLM session file not found: {exc}. "
+            f"Run `notebooklm login` to set up the session.",
+            transient=False,
+            code="session_expired",
+        ) from exc
     except Exception as exc:  # noqa: BLE001
-        # NotebookLM unofficial API — classify conservatively
         msg = str(exc).lower()
-        if "timeout" in msg:
+        name = type(exc).__name__.lower()
+
+        if "timeout" in name or "timeout" in msg:
             raise _ClassifiedError(f"notebooklm timeout: {exc}", transient=True, code="timeout") from exc
-        if "auth" in msg or "unauthorized" in msg or "401" in msg:
-            raise _ClassifiedError("NotebookLM session expired", transient=False, code="session_expired") from exc
-        return None  # Let tier 3 try
+        if "auth" in msg or "unauthorized" in msg or "401" in msg or "login" in msg:
+            raise _ClassifiedError(
+                f"NotebookLM session expired: {exc}. Run `notebooklm login` to refresh.",
+                transient=False,
+                code="session_expired",
+            ) from exc
+        if "members-only" in msg or "member" in msg:
+            raise _ClassifiedError(
+                "Members-only video", transient=False, code="members_only"
+            ) from exc
+        if "not found" in msg or "video unavailable" in msg or "404" in msg:
+            raise _ClassifiedError(
+                "Video unavailable", transient=False, code="video_removed"
+            ) from exc
+
+        # Unknown exception — classify as transient so the other tiers can try
+        logger.warning("notebooklm unknown error: %s: %s", type(exc).__name__, exc)
+        raise _ClassifiedError(
+            f"notebooklm unknown error: {type(exc).__name__}: {exc}",
+            transient=True,
+            code="unknown",
+        ) from exc
 
     if text and len(text) >= 100:
-        logger.info("tier 2 notebooklm: %d chars", len(text))
+        logger.info("tier 1 notebooklm: %d chars", len(text))
         return TranscriptResult(text=text, source="notebooklm")
 
-    return None  # Let tier 3 try
+    return None  # Empty-ish response — let tier 2/3 try
 
 
 # ---------------------------------------------------------------------------

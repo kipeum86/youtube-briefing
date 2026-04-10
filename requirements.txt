@@ -1,15 +1,15 @@
 # Core
 pydantic>=2.7.0
 PyYAML>=6.0
+python-dotenv>=1.0.0
 
-# Content fetching (3-tier transcript strategy)
-youtube-transcript-api>=1.0.0
-yt-dlp>=2026.1.0
-feedparser>=6.0.11
-# NotebookLM is optional fallback — only needed if NOTEBOOKLM_AUTH_JSON is set
-notebooklm-py>=0.1.0 ; python_version >= "3.11"
+# Content fetching — NotebookLM is PRIMARY (required), other tiers are safety nets
+notebooklm-py>=0.3.0     # tier 1 — primary transcript source (logged-in Google session)
+youtube-transcript-api>=1.0.0   # tier 2 — secondary (works only from non-CI IPs)
+yt-dlp>=2026.1.0         # tier 3 — tertiary + channel discovery catchup
+feedparser>=6.0.11       # RSS channel discovery (tier 1 of video discovery)
 
-# LLM provider
+# LLM provider (required)
 google-genai>=0.3.0
 
 # Dev + tests
