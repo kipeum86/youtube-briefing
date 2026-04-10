@@ -1,0 +1,208 @@
+"""Summarizer abstraction — swappable LLM provider interface.
+
+Every concrete summarizer implements `Summarizer.summarize(transcript, meta)`,
+returning a `SummarizerResult` with the summary text plus provenance fields
+that get written into the briefing JSON (provider, model, prompt_version).
+
+This abstraction exists so swapping from Gemini to Sonnet or GPT is a one-line
+config change in `config.yaml` (`pipeline.summarizer.provider`). The orchestrator
+loads the right subclass by name via `load_summarizer()`.
+"""
+
+from __future__ import annotations
+
+from abc import ABC, abstractmethod
+from dataclasses import dataclass
+
+from pipeline.models import VideoMeta
+
+
+class SummarizerError(Exception):
+    """Base exception for summarizer failures."""
+
+
+class TransientSummarizerError(SummarizerError):
+    """Retry next pipeline run (network, 5xx, rate limits)."""
+
+
+class PermanentSummarizerError(SummarizerError):
+    """Write failed placeholder (4xx, wrong language, refused)."""
+
+    def __init__(self, message: str, failure_code: str):
+        super().__init__(message)
+        self.failure_code = failure_code  # matches FailureReason enum value
+
+
+@dataclass
+class SummarizerResult:
+    """Return value from Summarizer.summarize().
+
+    Contains everything needed to populate the corresponding fields on the
+    Briefing model.
+    """
+
+    summary: str
+    provider: str
+    model: str
+    prompt_version: str
+
+
+class Summarizer(ABC):
+    """Abstract base class for all summarizer backends.
+
+    Concrete subclasses:
+      - pipeline/summarizers/gemini_flash.py :: GeminiFlashSummarizer
+      - (future) pipeline/summarizers/claude_sonnet.py
+      - (future) pipeline/summarizers/openai_gpt.py
+
+    Subclasses MUST:
+      1. Override provider/model/prompt_version class attributes
+      2. Implement _build_prompt(transcript, meta) → str
+      3. Implement _call_api(prompt) → str (raw response text)
+      4. Raise Transient/PermanentSummarizerError on failures
+    """
+
+    provider: str = "abstract"
+    model: str = "abstract"
+    prompt_version: str = "v1"
+
+    # Hard constraints enforced after _call_api returns
+    min_chars: int = 500
+    max_chars: int = 1000
+    max_retries_on_short: int = 1
+
+    def summarize(self, transcript: str, meta: VideoMeta) -> SummarizerResult:
+        """Produce a Korean deep-analysis summary of the transcript.
+
+        High-level flow:
+          1. Build the prompt from the transcript + metadata
+          2. Call the API
+          3. Validate the response (length, language, no forbidden phrases)
+          4. Return SummarizerResult on success, raise on failure
+
+        This method is NOT abstract — it implements the policy. Subclasses
+        override _build_prompt and _call_api.
+        """
+        if not transcript or len(transcript) < 100:
+            raise PermanentSummarizerError(
+                f"transcript too short to summarize ({len(transcript or '')} chars)",
+                failure_code="empty_transcript",
+            )
+
+        prompt = self._build_prompt(transcript, meta)
+
+        attempts = 0
+        last_response = ""
+        while attempts <= self.max_retries_on_short:
+            raw = self._call_api(prompt)
+            last_response = raw
+            self._validate_language(raw)
+
+            summary = self._truncate_to_limit(raw)
+            if len(summary) >= self.min_chars:
+                return SummarizerResult(
+                    summary=summary,
+                    provider=self.provider,
+                    model=self.model,
+                    prompt_version=self.prompt_version,
+                )
+
+            attempts += 1
+
+        # All retries exhausted but still too short — take whatever we have
+        # if it meets a relaxed floor (200 chars), otherwise fail permanently.
+        summary = self._truncate_to_limit(last_response)
+        if len(summary) >= 200:
+            return SummarizerResult(
+                summary=summary,
+                provider=self.provider,
+                model=self.model,
+                prompt_version=self.prompt_version,
+            )
+        raise PermanentSummarizerError(
+            f"summarizer consistently produced output below 200 chars ({len(summary)} chars)",
+            failure_code="summarizer_refused",
+        )
+
+    @abstractmethod
+    def _build_prompt(self, transcript: str, meta: VideoMeta) -> str:
+        """Construct the LLM prompt from the transcript and video metadata."""
+
+    @abstractmethod
+    def _call_api(self, prompt: str) -> str:
+        """Send the prompt to the LLM provider and return the raw response text."""
+
+    # ------------------------------------------------------------------
+    # Shared validation helpers
+    # ------------------------------------------------------------------
+
+    def _validate_language(self, text: str) -> None:
+        """Raise PermanentSummarizerError if the response is not Korean.
+
+        Heuristic: at least 30% of non-whitespace characters must be Hangul
+        (Unicode blocks U+AC00-U+D7A3 and U+1100-U+11FF).
+        """
+        non_space = [c for c in text if not c.isspace()]
+        if not non_space:
+            raise PermanentSummarizerError(
+                "summarizer returned empty response",
+                failure_code="summarizer_refused",
+            )
+        hangul_count = sum(1 for c in non_space if _is_hangul(c))
+        ratio = hangul_count / len(non_space)
+        if ratio < 0.3:
+            raise PermanentSummarizerError(
+                f"summarizer returned non-Korean output (hangul ratio: {ratio:.0%})",
+                failure_code="wrong_language",
+            )
+
+    def _truncate_to_limit(self, text: str) -> str:
+        """Truncate to max_chars, trying to end on a sentence boundary."""
+        text = text.strip()
+        if len(text) <= self.max_chars:
+            return text
+
+        # Find the last sentence-ending punctuation before max_chars
+        candidates = []
+        for punct in ("다.", "요.", "음.", ".", "!", "?"):
+            idx = text.rfind(punct, 0, self.max_chars)
+            if idx != -1:
+                candidates.append(idx + len(punct))
+
+        if candidates:
+            return text[: max(candidates)].strip()
+
+        # No sentence boundary found — hard truncate with ellipsis
+        return text[: self.max_chars - 1] + "…"
+
+
+def _is_hangul(char: str) -> bool:
+    """True if the character is in a Hangul Unicode block."""
+    if not char:
+        return False
+    code = ord(char)
+    return (
+        0xAC00 <= code <= 0xD7A3  # Hangul syllables
+        or 0x1100 <= code <= 0x11FF  # Hangul Jamo
+        or 0x3130 <= code <= 0x318F  # Hangul compatibility Jamo
+    )
+
+
+def load_summarizer(provider: str, model: str, prompt_version: str = "v1") -> Summarizer:
+    """Factory: load the right Summarizer subclass by provider name.
+
+    Keeps the orchestrator free of import-time dependencies on specific
+    provider libraries (google-genai, anthropic, openai).
+
+    Raises:
+        ValueError: unknown provider
+    """
+    if provider == "gemini":
+        from pipeline.summarizers.gemini_flash import GeminiFlashSummarizer
+
+        return GeminiFlashSummarizer(model=model, prompt_version=prompt_version)
+
+    raise ValueError(
+        f"unknown summarizer provider: {provider!r}. "
+        f"Supported: gemini"
+    )
