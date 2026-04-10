@@ -364,6 +364,13 @@ body {
   opacity: 0.55;
 }
 
+/* Don't dim the card you're actively reading. The .read fade is meant to
+   de-emphasize finished briefings on return visits, not the one currently
+   expanded under your eyes. */
+.briefing.read[data-expanded="true"] {
+  opacity: 1;
+}
+
 .briefing.failed {
   opacity: 0.75;
 }
