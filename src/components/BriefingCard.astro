@@ -64,48 +64,98 @@ const failureDisplay = isFailed && data.failure_reason
  *   <blank line>
  *   함의 2~3문장
  *
- * So we split on `\n\n+`, extract an optional opening `**headline**`, and
- * treat the rest as body paragraphs. This lets the frontend render with
- * real paragraph spacing instead of one wall of text.
+ * The model occasionally drifts and writes section labels like "**1. 주제 한 줄**"
+ * or "**핵심 주장**" as their own paragraph. We strip those before rendering.
+ *
+ * Each surviving body paragraph may also contain inline `**bold**` markdown
+ * spans (Gemini reaches for them naturally for emphasis). We render those as
+ * <strong> tags via a tiny safe parser. We deliberately don't pull in a real
+ * markdown library — only `**bold**` is in scope, everything else stays plain.
  */
+interface SummarySegment {
+  text: string;
+  bold: boolean;
+}
+
 interface ParsedSummary {
   headline: string | null;
-  paragraphs: string[];
+  paragraphs: SummarySegment[][];
+}
+
+// Section-label paragraphs the model sometimes inserts as their own block.
+// Examples seen in production: "**1. 주제 한 줄**", "**핵심 주장**", "주제: ..."
+const SECTION_LABEL_PATTERNS: RegExp[] = [
+  /^\*{0,2}\s*(\d+\.\s*)?(주제\s*한\s*줄|핵심\s*주장|근거\s*\/?\s*데이터|함의|결론|요약)\s*\*{0,2}\s*$/,
+  /^#+\s*/,  // markdown headers like "## 핵심 주장"
+];
+
+function isSectionLabel(text: string): boolean {
+  return SECTION_LABEL_PATTERNS.some((re) => re.test(text.trim()));
+}
+
+/**
+ * Convert a paragraph string into a list of {text, bold} segments by walking
+ * the string and toggling on every `**` pair. This is intentionally minimal —
+ * doesn't handle nested markdown, escaped asterisks, or any other inline
+ * markup. The output is rendered as a sequence of <span>/<strong> children
+ * by Astro's JSX renderer, so there's no innerHTML/XSS risk.
+ */
+function parseInlineBold(paragraph: string): SummarySegment[] {
+  const segments: SummarySegment[] = [];
+  // Match either **bold** spans or any other run of characters.
+  const re = /\*\*([^*]+)\*\*|([^*]+|\*)/g;
+  let match: RegExpExecArray | null;
+  while ((match = re.exec(paragraph)) !== null) {
+    if (match[1] !== undefined) {
+      segments.push({ text: match[1], bold: true });
+    } else if (match[2] !== undefined && match[2].length > 0) {
+      segments.push({ text: match[2], bold: false });
+    }
+  }
+  return segments;
 }
 
 function parseSummary(summary: string): ParsedSummary {
   const trimmed = summary.trim();
   if (!trimmed) return { headline: null, paragraphs: [] };
 
-  const blocks = trimmed
+  const rawBlocks = trimmed
     .split(/\n\s*\n+/)
     .map((b) => b.trim())
     .filter((b) => b.length > 0);
 
-  if (blocks.length === 0) return { headline: null, paragraphs: [] };
+  if (rawBlocks.length === 0) return { headline: null, paragraphs: [] };
 
-  const headerMatch = blocks[0].match(/^\*\*(.+?)\*\*\s*$/s);
-  if (headerMatch) {
-    return {
-      headline: headerMatch[1].trim(),
-      paragraphs: blocks.slice(1),
-    };
+  // Pull off an opening **headline** if it's a single short line wrapped in **.
+  let headline: string | null = null;
+  let bodyBlocks = rawBlocks;
+  const firstHeader = rawBlocks[0].match(/^\*\*(.+?)\*\*\s*$/s);
+  if (firstHeader && firstHeader[1].length < 80 && !firstHeader[1].includes("\n")) {
+    headline = firstHeader[1].trim();
+    bodyBlocks = rawBlocks.slice(1);
   }
 
-  return { headline: null, paragraphs: blocks };
+  // Drop any section-label paragraphs Gemini may have leaked through, then
+  // parse inline **bold** spans on the survivors.
+  const paragraphs = bodyBlocks
+    .filter((b) => !isSectionLabel(b))
+    .map((b) => parseInlineBold(b))
+    .filter((segs) => segs.length > 0);
+
+  return { headline, paragraphs };
 }
 
 /**
- * Produce the collapsed-card preview text.
- *
- * Skips the `**headline**` and takes the first real paragraph. Truncates at
- * ~180 Korean chars on a sentence boundary when possible so the preview
- * doesn't end mid-word.
+ * Produce the collapsed-card preview text. Operates on the parsed summary so
+ * the preview never includes literal `**` or section labels.
  */
 function cleanPreview(summary: string | null): string {
   if (!summary) return "";
   const parsed = parseSummary(summary);
-  const first = parsed.paragraphs[0] ?? parsed.headline ?? "";
+  const firstSegs = parsed.paragraphs[0];
+  const first = firstSegs
+    ? firstSegs.map((s) => s.text).join("")
+    : parsed.headline ?? "";
   if (first.length <= 180) return first;
 
   const sliced = first.slice(0, 180);
@@ -156,8 +206,12 @@ const parsedSummary: ParsedSummary = !isFailed && data.summary
           {parsedSummary.headline && (
             <h3 class="full-summary-headline">{parsedSummary.headline}</h3>
           )}
-          {parsedSummary.paragraphs.map((paragraph) => (
-            <p>{paragraph}</p>
+          {parsedSummary.paragraphs.map((segments) => (
+            <p>
+              {segments.map((seg) =>
+                seg.bold ? <strong>{seg.text}</strong> : seg.text,
+              )}
+            </p>
           ))}
         </div>
       </>

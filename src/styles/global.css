@@ -500,6 +500,14 @@ body {
   margin-bottom: 0;
 }
 
+/* Inline emphasis from Gemini's `**bold**` markdown spans. Restrained, not
+   shouty — heavier weight + the deep forest accent color so the eye catches
+   it without losing the editorial feel. */
+.briefing .full-summary strong {
+  font-weight: 900;
+  color: var(--accent);
+}
+
 /* Slightly indent body paragraphs so the headline "carries" the column.
    Subtle — not a full editorial indent, just enough to create a visual
    left-edge hierarchy. Disabled on narrow mobile widths. */
