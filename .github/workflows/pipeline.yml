@@ -1,0 +1,186 @@
+name: pipeline
+
+# Runs the briefing pipeline on a cron schedule from GitHub Actions.
+#
+# Attempt history:
+#   1. 2026-04-10 morning (first attempt) — tried tiers 1 (transcript-api)
+#      + 3 (yt-dlp) without NOTEBOOKLM_AUTH_JSON. Result: 215/215 videos
+#      failed with IpBlocked / HTTP 429 because YouTube blocks cloud runner
+#      IP ranges outright.
+#   2. 2026-04-10 evening (this version) — using NotebookLM-py as tier 1
+#      with the storage_state injected via the NOTEBOOKLM_AUTH_JSON secret.
+#      NotebookLM rides on an authenticated Google session instead of
+#      anonymous HTTP so YouTube treats it as a real user.
+#
+# If tier 1 sessions drift out of validity on CI IPs, the fallback is
+# Webshare residential proxy injection into tier 2 (transcript-api).
+#
+# Required secrets:
+#   GEMINI_API_KEY          — always required
+#   NOTEBOOKLM_AUTH_JSON    — required, contents of ~/.notebooklm/storage_state.json
+#                             Register via:
+#                               gh secret set NOTEBOOKLM_AUTH_JSON -R $REPO \
+#                                 < ~/.notebooklm/storage_state.json
+#                             Refresh when the session expires (every few weeks):
+#                               notebooklm login       # refresh locally
+#                               gh secret set NOTEBOOKLM_AUTH_JSON -R $REPO \
+#                                 < ~/.notebooklm/storage_state.json
+
+on:
+  schedule:
+    # 21:00 UTC Sun/Tue/Thu = 06:00 KST Mon/Wed/Fri
+    - cron: "0 21 * * 0,2,4"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (discover only, no transcript/summarize/write)"
+        type: boolean
+        default: false
+      only_channel:
+        description: "Process only this channel slug (e.g. shuka). Empty = all."
+        type: string
+        default: ""
+      limit:
+        description: "Cap total videos processed (empty = no cap)"
+        type: string
+        default: ""
+
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: fetch + summarize + commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install yt-dlp (latest from pip, not apt)
+        run: pip install --upgrade yt-dlp
+
+      - name: Verify required secrets
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NOTEBOOKLM_AUTH_JSON: ${{ secrets.NOTEBOOKLM_AUTH_JSON }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY secret is not set. Run: gh secret set GEMINI_API_KEY -R \$GITHUB_REPOSITORY"
+            exit 1
+          fi
+          if [ -z "$NOTEBOOKLM_AUTH_JSON" ]; then
+            echo "::error::NOTEBOOKLM_AUTH_JSON secret is not set. Run: gh secret set NOTEBOOKLM_AUTH_JSON -R \$GITHUB_REPOSITORY < ~/.notebooklm/storage_state.json"
+            exit 1
+          fi
+          echo "✓ GEMINI_API_KEY set (${#GEMINI_API_KEY} chars)"
+          echo "✓ NOTEBOOKLM_AUTH_JSON set (${#NOTEBOOKLM_AUTH_JSON} chars)"
+
+      - name: Run pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          NOTEBOOKLM_AUTH_JSON: ${{ secrets.NOTEBOOKLM_AUTH_JSON }}
+        run: |
+          ARGS=""
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            ARGS="$ARGS --dry-run"
+          fi
+          if [ -n "${{ github.event.inputs.only_channel }}" ]; then
+            ARGS="$ARGS --only-channel ${{ github.event.inputs.only_channel }}"
+          fi
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            ARGS="$ARGS --limit ${{ github.event.inputs.limit }}"
+          fi
+          echo "Running: python pipeline/run.py $ARGS"
+          python pipeline/run.py $ARGS
+
+      - name: Show pipeline log
+        if: always()
+        run: |
+          if [ -f logs/pipeline.log ]; then
+            echo "========== pipeline.log (last 200 lines) =========="
+            tail -200 logs/pipeline.log
+          else
+            echo "(no log file produced)"
+          fi
+
+      - name: Check for new briefings
+        id: changes
+        # Note: `git diff --quiet data/briefings/` only checks tracked files;
+        # new briefings are untracked, so we must use git status --porcelain.
+        run: |
+          set -euo pipefail
+          STATUS=$(git status --porcelain data/briefings/ | grep -E '\.json$' || true)
+          if [ -z "$STATUS" ]; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No new or modified briefings."
+          else
+            NEW=$(echo "$STATUS" | grep -c '^??' || echo 0)
+            MOD=$(echo "$STATUS" | grep -c '^.M' || echo 0)
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "new_count=$NEW" >> "$GITHUB_OUTPUT"
+            echo "mod_count=$MOD" >> "$GITHUB_OUTPUT"
+            echo "Found $NEW new + $MOD modified briefings."
+          fi
+
+      - name: Commit and push new briefings
+        if: steps.changes.outputs.has_changes == 'true' && github.event.inputs.dry_run != 'true'
+        run: |
+          git config user.name "youtube-briefing-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/briefings/
+          git commit -m "Update briefings: $(date -u +%Y-%m-%d)
+
+          New: ${{ steps.changes.outputs.new_count }}
+          Modified: ${{ steps.changes.outputs.mod_count }}
+
+          Auto-committed by youtube-briefing pipeline workflow."
+          git push origin main
+
+      - name: Trigger Pages deploy
+        # GITHUB_TOKEN pushes don't auto-trigger downstream workflows
+        # (security feature). Manually dispatch pages.yml so the new
+        # briefings actually appear on the live site.
+        if: steps.changes.outputs.has_changes == 'true' && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy-pages --ref main
+          echo "✓ Triggered deploy-pages workflow"
+
+      - name: Summary
+        if: always()
+        env:
+          NEW: ${{ steps.changes.outputs.new_count }}
+          MOD: ${{ steps.changes.outputs.mod_count }}
+          HAS_CHANGES: ${{ steps.changes.outputs.has_changes }}
+        run: |
+          echo "## Pipeline Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "$HAS_CHANGES" = "true" ]; then
+            echo "✅ New briefings committed and pushed." >> $GITHUB_STEP_SUMMARY
+            echo "- New: $NEW" >> $GITHUB_STEP_SUMMARY
+            echo "- Modified: $MOD" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️  No new briefings this run." >> $GITHUB_STEP_SUMMARY
+          fi
