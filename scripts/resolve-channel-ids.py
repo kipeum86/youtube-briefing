@@ -12,6 +12,7 @@ has tracked YouTube UI changes for 5+ years.
 
 from __future__ import annotations
 
+import json
 import shutil
 import subprocess
 import sys
@@ -20,12 +21,18 @@ import sys
 def resolve_channel_id(url: str) -> str:
     """Return the UC... channel ID for a given YouTube URL/handle.
 
+    Uses `yt-dlp -J --flat-playlist --playlist-items 1` which dumps a single
+    JSON document where the channel's UC id lives at the top level. This is
+    more reliable than `--print channel_id` because that operates on playlist
+    ITEMS, where the field is often "NA" for @handle URLs — yt-dlp only fills
+    in per-item channel_id for flat playlists, not for channel feeds.
+
     Args:
         url: Either @handle URL (https://www.youtube.com/@syukaworld),
              a /channel/UC... URL, a /user/... URL, or a video URL.
 
     Returns:
-        The channel ID string (e.g. "UCsT0YIqwnpJCM-mx7-gSA4Q").
+        The channel ID string (e.g. "UCsJ6RuBiTVWRX156FVbeaGg").
 
     Raises:
         RuntimeError: yt-dlp not installed or failed to resolve
@@ -43,13 +50,11 @@ def resolve_channel_id(url: str) -> str:
             "  Windows: choco install yt-dlp"
         )
 
-    # Use --playlist-items 1 so yt-dlp only pulls metadata for one video,
-    # not the entire channel history. The channel_id is in the first item.
     cmd = [
         "yt-dlp",
+        "-J",  # dump channel/playlist JSON at the top level
         "--flat-playlist",
         "--playlist-items", "1",
-        "--print", "%(channel_id)s",
         url,
     ]
     try:
@@ -63,14 +68,38 @@ def resolve_channel_id(url: str) -> str:
             f"{result.stderr.strip() or '(no stderr output)'}"
         )
 
-    channel_id = result.stdout.strip().splitlines()[0] if result.stdout.strip() else ""
-    if not channel_id or not channel_id.startswith("UC"):
+    try:
+        data = json.loads(result.stdout)
+    except json.JSONDecodeError as e:
         raise RuntimeError(
-            f"yt-dlp returned unexpected channel_id: {channel_id!r}\n"
-            f"stdout: {result.stdout[:200]}"
+            f"yt-dlp JSON parse error: {e}\nFirst 500 chars of stdout: {result.stdout[:500]}"
+        ) from e
+
+    # Try the obvious location first, fall back to other fields that sometimes
+    # hold the UC id (e.g. when given a video URL or an uploader URL).
+    channel_id = (data.get("channel_id") or "").strip()
+    if not _looks_like_uc(channel_id):
+        for alt_field in ("uploader_id", "id"):
+            alt = (data.get(alt_field) or "").strip()
+            if _looks_like_uc(alt):
+                channel_id = alt
+                break
+
+    if not _looks_like_uc(channel_id):
+        raise RuntimeError(
+            "Could not extract a UC... channel ID from yt-dlp output.\n"
+            f"  channel_id={data.get('channel_id')!r}\n"
+            f"  id={data.get('id')!r}\n"
+            f"  uploader_id={data.get('uploader_id')!r}\n"
+            f"Check that {url!r} is a real YouTube channel."
         )
 
     return channel_id
+
+
+def _looks_like_uc(value: str) -> bool:
+    """UC IDs are always 'UC' + 22 base64url chars, total 24."""
+    return bool(value) and value.startswith("UC") and len(value) == 24
 
 
 def main():

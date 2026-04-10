@@ -24,6 +24,15 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Bootstrap sys.path so `python pipeline/run.py` works from any directory.
+# Without this, the absolute imports below fail with ModuleNotFoundError
+# because running a file directly doesn't add its parent's parent to sys.path.
+# `python -m pipeline.run` also works, but we want the simpler form to work
+# too (launchd, CI, manual local invocation).
+_REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(_REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(_REPO_ROOT))
+
 import yaml
 
 from pipeline.fetchers.discovery import DiscoveryFailure, discover_new_videos

@@ -28,22 +28,22 @@ pipeline:
   retry_backoff_seconds: 5
 
 channels:
-  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@kpunch
+  - id: "UCOB62fKRT7b73X7tRxMuN2g"  # https://www.youtube.com/@kpunch
     name: "박종훈의 지식한방"
     slug: parkjonghoon
 
-  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@syukaworld
+  - id: "UCsJ6RuBiTVWRX156FVbeaGg"  # https://www.youtube.com/@syukaworld
     name: "슈카월드"
     slug: shuka
 
-  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@understanding
+  - id: "UCIUni4ScRp4mqPXsxy62L5w"  # https://www.youtube.com/@understanding.
     name: "언더스탠딩"
     slug: understanding
 
-  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@지식인사이드
+  - id: "UCA_hgsFzmynpv1zkvA5A7jA"  # https://www.youtube.com/@지식인사이드
     name: "지식 인사이드"
     slug: jisik-inside
 
-  - id: ""  # TODO: run scripts/resolve-channel-ids.py https://www.youtube.com/@globelab
+  - id: "UCstI8HwGQsHdqLDgyH0PImw"  # https://www.youtube.com/@globelab
     name: "최준영 박사의 지구본 연구소"
     slug: globelab
