@@ -1,6 +1,15 @@
 #!/usr/bin/env bash
 #
-# install-launchd.sh — install the macOS launchd timer for youtube-briefing.
+# install-launchd.sh — macOS launchd timer installer (LEGACY / OPTIONAL).
+#
+# ⚠️  DEPRECATED as the primary automation path. The recommended setup uses
+# .github/workflows/pipeline.yml which runs on GitHub Actions and does not
+# depend on your Mac being awake. This launchd script is kept for:
+#
+#   1. Developers who prefer local-only execution (privacy, no GitHub secrets)
+#   2. Running the pipeline from a dedicated always-on Mac that has a
+#      logged-in NotebookLM Google session (for use cases where tier 2 is
+#      required and cannot be moved to CI).
 #
 # Creates ~/Library/LaunchAgents/com.kpsfamily.youtube-briefing.plist that runs
 # pipeline/run.py && scripts/commit-and-push.sh on Mon/Wed/Fri at 06:00 KST

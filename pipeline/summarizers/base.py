@@ -67,8 +67,8 @@ class Summarizer(ABC):
     prompt_version: str = "v1"
 
     # Hard constraints enforced after _call_api returns
-    min_chars: int = 500
-    max_chars: int = 1000
+    min_chars: int = 700
+    max_chars: int = 1200
     max_retries_on_short: int = 1
 
     def summarize(self, transcript: str, meta: VideoMeta) -> SummarizerResult:
@@ -110,9 +110,11 @@ class Summarizer(ABC):
             attempts += 1
 
         # All retries exhausted but still too short — take whatever we have
-        # if it meets a relaxed floor (200 chars), otherwise fail permanently.
+        # if it meets a relaxed floor (300 chars ≈ 40% of target min), else
+        # fail permanently. Proportional to min_chars.
         summary = self._truncate_to_limit(last_response)
-        if len(summary) >= 200:
+        relaxed_floor = max(300, int(self.min_chars * 0.4))
+        if len(summary) >= relaxed_floor:
             return SummarizerResult(
                 summary=summary,
                 provider=self.provider,
@@ -120,7 +122,7 @@ class Summarizer(ABC):
                 prompt_version=self.prompt_version,
             )
         raise PermanentSummarizerError(
-            f"summarizer consistently produced output below 200 chars ({len(summary)} chars)",
+            f"summarizer consistently produced output below {relaxed_floor} chars ({len(summary)} chars)",
             failure_code="summarizer_refused",
         )
 

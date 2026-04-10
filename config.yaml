@@ -13,8 +13,8 @@ pipeline:
     prompt_version: v1
 
   # Summary length constraints (Korean characters)
-  summary_min_chars: 500
-  summary_max_chars: 1000
+  summary_min_chars: 700
+  summary_max_chars: 1200
 
   # Local cron schedule: Mon/Wed/Fri 06:00 KST (= 21:00 UTC Sun/Tue/Thu)
   cron: "0 21 * * 0,2,4"

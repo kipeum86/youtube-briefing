@@ -1,0 +1,170 @@
+name: pipeline
+
+# Runs the briefing pipeline on a cron schedule:
+#   Mon / Wed / Fri at 06:00 KST  (= 21:00 UTC Sun/Tue/Thu)
+#
+# Design note (2026-04-10):
+# Originally designed to run locally via macOS launchd (plan doc Open Q 1,
+# Option A), but transitioned to GitHub Actions for reliability:
+#   - laptop sleep/power-off causes missed runs
+#   - youtube-transcript-api works in CI (no browser session needed)
+#   - yt-dlp VTT fallback also works in CI
+#   - NotebookLM-py fallback is OPTIONAL via NOTEBOOKLM_AUTH_JSON secret
+#     (only activates when bot detection blocks the other two tiers)
+#
+# Required secrets:
+#   GEMINI_API_KEY        — always required
+#   NOTEBOOKLM_AUTH_JSON  — optional, only needed if YouTube starts blocking
+#                           transcript-api + yt-dlp at scale. When set, the
+#                           3-tier fallback automatically engages NotebookLM.
+
+on:
+  schedule:
+    # 21:00 UTC on Sun/Tue/Thu = 06:00 KST on Mon/Wed/Fri
+    - cron: "0 21 * * 0,2,4"
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run (discover only, no transcript/summarize/write)"
+        type: boolean
+        default: false
+
+# Needed for the workflow to commit + push data/briefings/ back to main
+# and to manually trigger the pages.yml deploy workflow (GITHUB_TOKEN pushes
+# don't auto-trigger downstream workflows).
+permissions:
+  contents: write
+  actions: write
+
+concurrency:
+  group: pipeline
+  cancel-in-progress: false
+
+jobs:
+  run:
+    name: fetch + summarize + commit
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          # Need full depth for the commit + push step
+          fetch-depth: 0
+          # Use the default GITHUB_TOKEN for pushing
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Install yt-dlp (latest from pip, not apt)
+        run: |
+          # apt's yt-dlp is often months out of date. Pip version tracks YouTube
+          # DOM changes much more aggressively.
+          pip install --upgrade yt-dlp
+
+      - name: Verify Gemini API key is set
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          if [ -z "$GEMINI_API_KEY" ]; then
+            echo "::error::GEMINI_API_KEY secret is not set."
+            echo "Set it via: gh secret set GEMINI_API_KEY -R \$GITHUB_REPOSITORY"
+            exit 1
+          fi
+          echo "✓ GEMINI_API_KEY is set (${#GEMINI_API_KEY} chars)"
+
+      - name: Run pipeline
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          # Optional: activates NotebookLM-py fallback when set.
+          # When transcript-api + yt-dlp fail (e.g. bot detection), the
+          # 3-tier extractor automatically falls through to tier 2 if this
+          # variable has content. Set via:
+          #   gh secret set NOTEBOOKLM_AUTH_JSON -R $GITHUB_REPOSITORY < storage_state.json
+          NOTEBOOKLM_AUTH_JSON: ${{ secrets.NOTEBOOKLM_AUTH_JSON }}
+        run: |
+          if [ "${{ github.event.inputs.dry_run }}" = "true" ]; then
+            python pipeline/run.py --dry-run
+          else
+            python pipeline/run.py
+          fi
+
+      - name: Show pipeline log
+        if: always()
+        run: |
+          if [ -f logs/pipeline.log ]; then
+            echo "========== pipeline.log =========="
+            cat logs/pipeline.log
+          else
+            echo "(no log file produced)"
+          fi
+
+      - name: Check for new briefings
+        id: changes
+        run: |
+          if git diff --quiet data/briefings/; then
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No new briefings."
+          else
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            NEW=$(git status --porcelain data/briefings/ | grep -c '^??' || echo 0)
+            MOD=$(git status --porcelain data/briefings/ | grep -c '^ M' || echo 0)
+            echo "new_count=$NEW" >> "$GITHUB_OUTPUT"
+            echo "mod_count=$MOD" >> "$GITHUB_OUTPUT"
+            echo "Found $NEW new + $MOD modified briefings."
+          fi
+
+      - name: Commit and push new briefings
+        if: steps.changes.outputs.has_changes == 'true' && github.event.inputs.dry_run != 'true'
+        run: |
+          git config user.name "youtube-briefing-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add data/briefings/
+          git commit -m "Update briefings: $(date -u +%Y-%m-%d)
+
+          New: ${{ steps.changes.outputs.new_count }}
+          Modified: ${{ steps.changes.outputs.mod_count }}
+
+          Auto-committed by youtube-briefing pipeline workflow."
+          git push origin main
+
+      - name: Trigger Pages deploy
+        # Pushes from GITHUB_TOKEN do NOT automatically trigger downstream
+        # workflows (GitHub security feature to prevent loops). Manually dispatch
+        # pages.yml so the new briefings actually appear on the live site.
+        if: steps.changes.outputs.has_changes == 'true' && github.event.inputs.dry_run != 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh workflow run deploy-pages --ref main
+          echo "✓ Triggered deploy-pages workflow"
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "## Pipeline Run Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.changes.outputs.has_changes }}" = "true" ]; then
+            echo "✅ New briefings committed and pushed." >> $GITHUB_STEP_SUMMARY
+            echo "- New: ${{ steps.changes.outputs.new_count }}" >> $GITHUB_STEP_SUMMARY
+            echo "- Modified: ${{ steps.changes.outputs.mod_count }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️  No new briefings this run." >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Transcript tier status" >> $GITHUB_STEP_SUMMARY
+          if [ -n "${{ secrets.NOTEBOOKLM_AUTH_JSON }}" ]; then
+            echo "- ✅ Tier 2 (NotebookLM) available" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- ⚠️  Tier 2 (NotebookLM) NOT available (set NOTEBOOKLM_AUTH_JSON secret to enable bot-detection bypass)" >> $GITHUB_STEP_SUMMARY
+          fi

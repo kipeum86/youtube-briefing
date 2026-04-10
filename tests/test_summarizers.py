@@ -75,12 +75,13 @@ class FakeSummarizer(Summarizer):
 
 class TestBaseSummarizerPolicy:
     def test_happy_path_returns_result(self):
-        s = FakeSummarizer(responses=[_korean_summary(700)])
+        # 900 is safely above the 700 min_chars floor
+        s = FakeSummarizer(responses=[_korean_summary(900)])
         result = s.summarize("가" * 500, _make_video_meta())
 
         assert isinstance(result, SummarizerResult)
         # Truncation may trim to last sentence boundary so length is <= fixture size
-        assert 500 <= len(result.summary) <= 700
+        assert 700 <= len(result.summary) <= 900
         assert result.provider == "fake"
 
     def test_empty_transcript_raises_permanent(self):
@@ -96,23 +97,23 @@ class TestBaseSummarizerPolicy:
         assert exc_info.value.failure_code == "empty_transcript"
 
     def test_short_output_triggers_retry(self):
-        """First response is too short; second meets the floor."""
-        s = FakeSummarizer(responses=[_korean_summary(300), _korean_summary(600)])
+        """First response below 700; second meets the floor."""
+        s = FakeSummarizer(responses=[_korean_summary(400), _korean_summary(900)])
         result = s.summarize("가" * 500, _make_video_meta())
 
         assert s.call_count == 2
-        assert 500 <= len(result.summary) <= 600
+        assert 700 <= len(result.summary) <= 900
 
     def test_persistently_short_output_relaxed_floor(self):
-        """Both attempts short but above 200 → accept what we have."""
-        short = _korean_summary(250)
+        """Both attempts below min_chars but above the relaxed floor (300) → accept."""
+        short = _korean_summary(500)  # below 700 min, above 300 relaxed
         s = FakeSummarizer(responses=[short, short])
         result = s.summarize("가" * 500, _make_video_meta())
-        assert 200 <= len(result.summary) <= 250
+        assert 300 <= len(result.summary) <= 500
 
     def test_way_too_short_raises_permanent(self):
-        """Both attempts below 200 chars → permanent failure."""
-        tiny = _korean_summary(100)
+        """Both attempts below relaxed floor (300) → permanent failure."""
+        tiny = _korean_summary(150)
         s = FakeSummarizer(responses=[tiny, tiny])
         with pytest.raises(PermanentSummarizerError) as exc_info:
             s.summarize("가" * 500, _make_video_meta())
@@ -136,17 +137,17 @@ class TestBaseSummarizerPolicy:
 class TestTruncation:
     def test_long_response_truncated_at_sentence_boundary(self):
         s = FakeSummarizer(responses=[])
-        long_text = "첫 문장이 여기 있습니다. 두 번째 문장도 있습니다. " * 40  # ~1800 chars
+        long_text = "첫 문장이 여기 있습니다. 두 번째 문장도 있습니다. " * 50  # ~2250 chars
         truncated = s._truncate_to_limit(long_text)
-        assert len(truncated) <= 1000
+        assert len(truncated) <= 1200
         # Should end at a sentence boundary (period)
         assert truncated.endswith(".") or truncated.endswith("…")
 
     def test_no_sentence_boundary_falls_back_to_hard_truncate(self):
         s = FakeSummarizer(responses=[])
-        no_punct = "한국어" * 500
+        no_punct = "한국어" * 600
         truncated = s._truncate_to_limit(no_punct)
-        assert len(truncated) <= 1000
+        assert len(truncated) <= 1200
         assert truncated.endswith("…")
 
     def test_short_response_untouched(self):
@@ -191,7 +192,7 @@ class TestGeminiFlashPromptBuild:
         prompt = s._build_prompt("테스트 트랜스크립트 내용 " * 20, meta)
         assert meta.title in prompt
         assert meta.channel_name in prompt
-        assert "500~1,000자" in prompt  # Length constraint
+        assert "700~1,200자" in prompt  # Length constraint
 
     def test_long_transcript_is_capped(self):
         s = GeminiFlashSummarizer(api_key="fake-key")
@@ -304,7 +305,7 @@ class TestGeminiFullFlow:
         s = GeminiFlashSummarizer(api_key="fake-key")
 
         fake_response = MagicMock()
-        fake_response.text = _korean_summary(700)
+        fake_response.text = _korean_summary(1000)
 
         fake_client = MagicMock()
         fake_client.models.generate_content.return_value = fake_response
@@ -312,8 +313,8 @@ class TestGeminiFullFlow:
 
         result = s.summarize("트랜스크립트 " * 100, _make_video_meta())
         assert isinstance(result, SummarizerResult)
-        # Truncation may trim to the last sentence boundary below 700
-        assert 500 <= len(result.summary) <= 700
+        # Truncation may trim to the last sentence boundary; bounds reflect new 700-1200 target
+        assert 700 <= len(result.summary) <= 1000
         assert result.provider == "gemini"
         assert result.model == "gemini-2.5-flash"
         assert result.prompt_version == "v1"

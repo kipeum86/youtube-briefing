@@ -61,14 +61,18 @@ def _write_config(tmp_path: Path, channels: list[dict]) -> Path:
 
 @pytest.fixture
 def fake_summarizer(monkeypatch):
-    """A fake summarizer that returns Korean summaries by default."""
+    """A fake summarizer that returns Korean summaries by default.
+
+    The fixture summary is ~800 chars (15 repeats × ~55 chars = ~830),
+    safely inside the 700-1200 target window.
+    """
     summarizer = MagicMock()
     summarizer.provider = "gemini"
     summarizer.model = "gemini-2.5-flash"
     summarizer.prompt_version = "v1"
     summarizer.summarize.return_value = SummarizerResult(
         summary="파월 의장의 발언에서 주목할 점은 표면적 인하 신호가 아니라 그 이면의 조건부 단서들이다. "
-        * 10,
+        * 15,
         provider="gemini",
         model="gemini-2.5-flash",
         prompt_version="v1",
@@ -307,7 +311,8 @@ class TestRunOrchestrator:
             if call_count["n"] == 3:
                 raise RuntimeError("totally unexpected library bug")
             return SummarizerResult(
-                summary="파월 의장의 발언 " * 40,
+                summary="파월 의장의 발언에서 주목할 점은 표면적 인하 신호가 아니라 그 이면의 조건부 단서들이다. "
+                * 15,
                 provider="gemini",
                 model="gemini-2.5-flash",
                 prompt_version="v1",

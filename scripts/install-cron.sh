@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 #
-# install-cron.sh — Linux cron equivalent of install-launchd.sh.
+# install-cron.sh — Linux cron equivalent of install-launchd.sh (LEGACY).
+#
+# ⚠️  DEPRECATED as the primary automation path. See
+# .github/workflows/pipeline.yml for the recommended cloud-based cron setup.
+# This script remains for local-only execution on an always-on Linux host.
 #
 # Adds a cron entry that runs pipeline/run.py && commit-and-push.sh
 # on Mon/Wed/Fri at 06:00 KST (= 21:00 UTC Sun/Tue/Thu).
