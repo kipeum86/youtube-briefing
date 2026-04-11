@@ -40,6 +40,7 @@ def discover_new_videos(
     channel_name: str,
     known_video_ids: set[str],
     max_new_videos: int | None = None,
+    min_duration_seconds: int | None = None,
 ) -> list[VideoMeta]:
     """Find videos from a channel that are not yet in known_video_ids.
 
@@ -49,11 +50,15 @@ def discover_new_videos(
       2. If RSS is saturated (our newest-known not in response AND response
          has exactly 15 items), fall back to yt-dlp catchup for this channel.
 
-    After filtering out already-processed videos, optionally cap the result
-    to the `max_new_videos` most recent items. This is useful for keeping
-    scheduled runs from processing bursts of 15 videos per channel — a more
-    reasonable default is 10, leaving headroom for channels that occasionally
-    post multiple videos in a day.
+    Filter order matters:
+      1. Filter to new (not in known_video_ids)
+      2. Filter out Shorts (duration < min_duration_seconds)
+      3. Cap to max_new_videos most recent
+
+    Duration-filtering before capping matters: if a channel drops 5 Shorts in
+    one day, you don't want the cap burning slots on them and skipping real
+    videos. The downside: RSS doesn't carry duration, so we have to probe
+    yt-dlp for the new candidates. One subprocess call per channel per run.
 
     Args:
         channel_id: YouTube UC... channel ID
@@ -62,6 +67,9 @@ def discover_new_videos(
         known_video_ids: set of video_ids already processed (from glob of data/briefings/)
         max_new_videos: optional cap on how many NEW videos to return per run.
             None (default) means no cap (use whatever RSS gives us, up to 15).
+        min_duration_seconds: optional floor on video length, in seconds.
+            Videos shorter than this are dropped. None or 0 disables the
+            filter. Use 600 to filter out Shorts (Shorts max at 60s).
 
     Returns:
         List of new VideoMeta objects, ordered newest-first. Empty list if nothing new.
@@ -83,13 +91,18 @@ def discover_new_videos(
         # Check for RSS window saturation
         saturated = _is_rss_saturated(rss_videos, known_video_ids)
         if not saturated:
-            capped = _apply_cap(new_rss, max_new_videos)
+            # Enrich with durations (RSS doesn't carry them) and drop shorts.
+            enriched, dropped = _enrich_and_filter_durations(
+                new_rss, min_duration_seconds, channel_slug
+            )
+            capped = _apply_cap(enriched, max_new_videos)
             logger.info(
-                "[%s] RSS discovery: %d total, %d new%s",
+                "[%s] RSS discovery: %d total, %d new, %d kept after duration filter%s",
                 channel_slug,
                 len(rss_videos),
                 len(new_rss),
-                f" (capped to {len(capped)})" if len(capped) < len(new_rss) else "",
+                len(enriched),
+                f" (capped to {len(capped)})" if len(capped) < len(enriched) else "",
             )
             return capped
 
@@ -113,18 +126,136 @@ def discover_new_videos(
             e,
         )
         fallback = [v for v in rss_videos if v.video_id not in known_video_ids]
-        return _apply_cap(fallback, max_new_videos)
+        enriched, _ = _enrich_and_filter_durations(fallback, min_duration_seconds, channel_slug)
+        return _apply_cap(enriched, max_new_videos)
 
     new_catchup = [v for v in catchup_videos if v.video_id not in known_video_ids]
-    capped = _apply_cap(new_catchup, max_new_videos)
+    # Catchup videos already carry duration from yt-dlp — no probe needed.
+    filtered_catchup = _filter_shorts(new_catchup, min_duration_seconds)
+    capped = _apply_cap(filtered_catchup, max_new_videos)
     logger.info(
-        "[%s] yt-dlp catchup: %d total, %d new%s",
+        "[%s] yt-dlp catchup: %d total, %d new, %d kept after duration filter%s",
         channel_slug,
         len(catchup_videos),
         len(new_catchup),
-        f" (capped to {len(capped)})" if len(capped) < len(new_catchup) else "",
+        len(filtered_catchup),
+        f" (capped to {len(capped)})" if len(capped) < len(filtered_catchup) else "",
     )
     return capped
+
+
+def _filter_shorts(videos: list[VideoMeta], min_duration_seconds: int | None) -> list[VideoMeta]:
+    """Drop videos shorter than the threshold.
+
+    Videos with `duration_seconds=None` are kept — unknown duration is better
+    treated as "might be a real video" than silently dropped. In practice this
+    path only fires for RSS-sourced videos that the duration probe couldn't
+    resolve (yt-dlp failure), and we'd rather process a potential short than
+    miss a real upload because of a transient probe failure.
+    """
+    if not min_duration_seconds or min_duration_seconds <= 0:
+        return videos
+    return [
+        v for v in videos
+        if v.duration_seconds is None or v.duration_seconds >= min_duration_seconds
+    ]
+
+
+def _enrich_and_filter_durations(
+    videos: list[VideoMeta],
+    min_duration_seconds: int | None,
+    channel_slug: str,
+) -> tuple[list[VideoMeta], int]:
+    """Populate duration on RSS-sourced videos, then drop shorts.
+
+    RSS feeds don't include duration, so every video from `_fetch_rss` arrives
+    with `duration_seconds=None`. To filter Shorts we need to probe yt-dlp
+    once for the candidate set.
+
+    Returns:
+        (kept_videos, dropped_count) where kept_videos preserves input order.
+    """
+    if not videos or not min_duration_seconds or min_duration_seconds <= 0:
+        return videos, 0
+
+    # Probe only videos whose duration we don't already know (all of them, for
+    # RSS-sourced input, but this keeps the helper safe if called on a mixed list).
+    to_probe = [v.video_id for v in videos if v.duration_seconds is None]
+    durations: dict[str, int | None] = {}
+    if to_probe:
+        try:
+            durations = _probe_durations(to_probe)
+        except Exception as e:  # noqa: BLE001
+            logger.warning(
+                "[%s] duration probe failed: %s — keeping all candidates (fail open)",
+                channel_slug,
+                e,
+            )
+            return videos, 0
+
+    # Replace each VideoMeta with a copy carrying the probed duration.
+    enriched: list[VideoMeta] = []
+    for v in videos:
+        if v.duration_seconds is None and v.video_id in durations:
+            d = durations[v.video_id]
+            enriched.append(v.model_copy(update={"duration_seconds": d}))
+        else:
+            enriched.append(v)
+
+    kept = _filter_shorts(enriched, min_duration_seconds)
+    return kept, len(enriched) - len(kept)
+
+
+def _probe_durations(video_ids: list[str]) -> dict[str, int | None]:
+    """Batch-probe video durations via yt-dlp metadata fetch.
+
+    Runs a single yt-dlp subprocess with all video URLs, prints `id|duration`
+    for each, and returns a dict. Videos that yt-dlp can't resolve are mapped
+    to None (keeps them from being silently dropped downstream).
+    """
+    if not video_ids:
+        return {}
+
+    urls = [f"https://www.youtube.com/watch?v={vid}" for vid in video_ids]
+    cmd = [
+        "yt-dlp",
+        "--skip-download",
+        "--no-warnings",
+        "--ignore-errors",
+        "--extractor-args", "youtube:lang=ko",
+        "--print", "%(id)s|%(duration)s",
+        *urls,
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    except FileNotFoundError as e:
+        raise RuntimeError("yt-dlp binary not found — required for duration probe") from e
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"yt-dlp duration probe timeout ({180}s)") from e
+
+    # We pass --ignore-errors so rc may be nonzero when some videos are
+    # unavailable. Only fail hard if we got nothing back at all.
+    if result.returncode != 0 and not result.stdout.strip():
+        raise RuntimeError(
+            f"yt-dlp duration probe exit {result.returncode}: {result.stderr[:300]}"
+        )
+
+    durations: dict[str, int | None] = {}
+    for line in result.stdout.strip().split("\n"):
+        line = line.strip()
+        if not line or "|" not in line:
+            continue
+        vid, _, dur_str = line.partition("|")
+        vid = vid.strip()
+        dur_str = dur_str.strip()
+        if not vid:
+            continue
+        try:
+            durations[vid] = int(float(dur_str)) if dur_str and dur_str != "NA" else None
+        except ValueError:
+            durations[vid] = None
+
+    return durations
 
 
 def _apply_cap(videos: list[VideoMeta], cap: int | None) -> list[VideoMeta]:

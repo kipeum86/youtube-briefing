@@ -386,7 +386,7 @@ class TestRunOrchestrator:
         # Capture what each channel's discovery call sees.
         seen_known: dict[str, set[str]] = {}
 
-        def discover_side_effect(channel_id, channel_slug, channel_name, known_video_ids, max_new_videos=None):
+        def discover_side_effect(channel_id, channel_slug, channel_name, known_video_ids, max_new_videos=None, min_duration_seconds=None):
             seen_known[channel_slug] = set(known_video_ids)
             return []  # Pretend no new videos, we only care about the known set
 
@@ -415,7 +415,7 @@ class TestRunOrchestrator:
         )
         briefings_dir = tmp_path / "briefings"
 
-        def discover_side_effect(channel_id, channel_slug, channel_name, known_video_ids, max_new_videos=None):
+        def discover_side_effect(channel_id, channel_slug, channel_name, known_video_ids, max_new_videos=None, min_duration_seconds=None):
             if channel_slug == "ch2":
                 raise DiscoveryFailure(f"[{channel_slug}] RSS 404")
             return [_make_meta(f"{channel_slug}_v1", slug=channel_slug, channel_name=channel_name)]

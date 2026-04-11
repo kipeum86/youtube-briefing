@@ -10,10 +10,12 @@ import pytest
 from pipeline.fetchers import discovery
 from pipeline.fetchers.discovery import (
     DiscoveryFailure,
+    _filter_shorts,
     _is_rss_saturated,
     _parse_rss_timestamp,
     _parse_ytdlp_output,
     _parse_ytdlp_publish_date,
+    _probe_durations,
     discover_new_videos,
 )
 from pipeline.models import DiscoverySource, VideoMeta
@@ -162,6 +164,99 @@ class TestParseYtdlpOutput:
         assert videos[0].published_at.year == 2024
 
 
+class TestFilterShorts:
+    def test_drops_videos_below_threshold(self):
+        videos = [
+            _make_meta("long0001", duration_seconds=1800),
+            _make_meta("short001", duration_seconds=45),
+            _make_meta("long0002", duration_seconds=2400),
+        ]
+        kept = _filter_shorts(videos, 600)
+        assert {v.video_id for v in kept} == {"long0001", "long0002"}
+
+    def test_keeps_videos_with_unknown_duration(self):
+        """Videos with duration_seconds=None are kept — better a false positive
+        than silently dropping a real upload because a probe failed."""
+        videos = [
+            _make_meta("known001", duration_seconds=1800),
+            _make_meta("unknown1", duration_seconds=None),
+            _make_meta("shortvid", duration_seconds=45),
+        ]
+        kept = _filter_shorts(videos, 600)
+        assert {v.video_id for v in kept} == {"known001", "unknown1"}
+
+    def test_none_threshold_keeps_all(self):
+        videos = [
+            _make_meta("short001", duration_seconds=10),
+            _make_meta("long0001", duration_seconds=1800),
+        ]
+        assert _filter_shorts(videos, None) == videos
+        assert _filter_shorts(videos, 0) == videos
+
+    def test_exactly_at_threshold_is_kept(self):
+        videos = [_make_meta("border01", duration_seconds=600)]
+        assert _filter_shorts(videos, 600) == videos
+
+
+class TestProbeDurations:
+    def test_empty_input_returns_empty_dict(self):
+        assert _probe_durations([]) == {}
+
+    def test_parses_yt_dlp_output(self, monkeypatch):
+        from unittest.mock import MagicMock
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 0
+        fake_result.stdout = "abc123|1234\ndef456|45\n"
+        fake_result.stderr = ""
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        out = _probe_durations(["abc123", "def456"])
+        assert out == {"abc123": 1234, "def456": 45}
+
+    def test_handles_na_duration(self, monkeypatch):
+        from unittest.mock import MagicMock
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 0
+        fake_result.stdout = "abc123|NA\n"
+        fake_result.stderr = ""
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        out = _probe_durations(["abc123"])
+        assert out == {"abc123": None}
+
+    def test_nonzero_exit_with_no_stdout_raises(self, monkeypatch):
+        from unittest.mock import MagicMock
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 2
+        fake_result.stdout = ""
+        fake_result.stderr = "boom"
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        with pytest.raises(RuntimeError, match="duration probe exit"):
+            _probe_durations(["abc123"])
+
+    def test_partial_success_with_ignore_errors(self, monkeypatch):
+        """yt-dlp --ignore-errors returns rc!=0 but still prints good lines.
+        We should accept what we got, not fail the batch."""
+        from unittest.mock import MagicMock
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 1
+        fake_result.stdout = "good123|1800\n"
+        fake_result.stderr = "WARNING: bad456 unavailable\n"
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        out = _probe_durations(["good123", "bad456"])
+        assert out == {"good123": 1800}
+
+
 class TestParseYtdlpPublishDate:
     """_parse_ytdlp_publish_date three-tier fallback.
 
@@ -308,6 +403,142 @@ class TestDiscoverNewVideos:
                 channel_name="슈카월드",
                 known_video_ids=set(),
             )
+
+    def test_min_duration_filters_shorts_on_rss_path(self, monkeypatch):
+        """RSS videos arrive with duration=None, probe populates them,
+        Shorts (< min_duration_seconds) get dropped before capping."""
+        rss_videos = [
+            _make_meta("shortv01"),  # will be probed as 45s
+            _make_meta("realv001"),  # will be probed as 1800s
+            _make_meta("shortv02"),  # will be probed as 30s
+            _make_meta("realv002"),  # will be probed as 2400s
+        ]
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+        monkeypatch.setattr(
+            discovery,
+            "_probe_durations",
+            lambda ids: {"shortv01": 45, "realv001": 1800, "shortv02": 30, "realv002": 2400},
+        )
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids=set(),
+            min_duration_seconds=600,
+        )
+        assert {v.video_id for v in new} == {"realv001", "realv002"}
+        assert all(v.duration_seconds >= 600 for v in new)
+
+    def test_min_duration_none_disables_filter(self, monkeypatch):
+        """min_duration_seconds=None means no probe, no filter."""
+        rss_videos = [_make_meta("shortv01"), _make_meta("realv001")]
+        probe_calls = {"n": 0}
+
+        def fake_probe(ids):
+            probe_calls["n"] += 1
+            return {}
+
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+        monkeypatch.setattr(discovery, "_probe_durations", fake_probe)
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids=set(),
+            min_duration_seconds=None,
+        )
+        assert len(new) == 2
+        assert probe_calls["n"] == 0  # probe skipped when filter disabled
+
+    def test_min_duration_zero_disables_filter(self, monkeypatch):
+        """min_duration_seconds=0 disables the filter too."""
+        rss_videos = [_make_meta("shortv01"), _make_meta("realv001")]
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+        monkeypatch.setattr(discovery, "_probe_durations", lambda ids: {})
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids=set(),
+            min_duration_seconds=0,
+        )
+        assert len(new) == 2
+
+    def test_duration_probe_failure_keeps_candidates(self, monkeypatch):
+        """If yt-dlp probe blows up, we fail open — keep everything rather
+        than silently dropping real videos due to a transient probe bug."""
+        rss_videos = [_make_meta("vidA00001"), _make_meta("vidB00001")]
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+
+        def raise_probe(ids):
+            raise RuntimeError("yt-dlp network down")
+
+        monkeypatch.setattr(discovery, "_probe_durations", raise_probe)
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids=set(),
+            min_duration_seconds=600,
+        )
+        # Fail open — both candidates kept
+        assert len(new) == 2
+
+    def test_min_duration_filters_catchup_path(self, monkeypatch):
+        """yt-dlp catchup videos already carry duration — filter directly,
+        no probe call needed."""
+        rss_videos = [_make_meta(f"rssv{i:03d}") for i in range(15)]  # saturated
+        catchup_videos = [
+            _make_meta("shortcv01", duration_seconds=45),
+            _make_meta("realcv001", duration_seconds=1800),
+            _make_meta("shortcv02", duration_seconds=30),
+        ]
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+        monkeypatch.setattr(discovery, "_fetch_ytdlp_catchup", lambda *a, **kw: catchup_videos)
+        # Guard: probe must NOT be called on catchup path (videos already have durations)
+        probe_called = {"n": 0}
+        monkeypatch.setattr(
+            discovery,
+            "_probe_durations",
+            lambda ids: (probe_called.__setitem__("n", probe_called["n"] + 1), {})[1],
+        )
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids={"ancient999"},  # forces saturation → catchup path
+            min_duration_seconds=600,
+        )
+        assert {v.video_id for v in new} == {"realcv001"}
+        assert probe_called["n"] == 0  # no probe on catchup path
+
+    def test_duration_filter_runs_before_cap(self, monkeypatch):
+        """If a channel drops 8 shorts and 3 real videos, cap=5 must not
+        waste slots on shorts and return 2 real videos. Filter first, then cap."""
+        rss_videos = [_make_meta(f"vid{i:05d}") for i in range(11)]
+        # First 8 are shorts, last 3 are real
+        durations = {
+            f"vid{i:05d}": 30 if i < 8 else 1800 for i in range(11)
+        }
+        monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
+        monkeypatch.setattr(discovery, "_probe_durations", lambda ids: durations)
+
+        new = discover_new_videos(
+            channel_id=VALID_CHANNEL_ID,
+            channel_slug="shuka",
+            channel_name="슈카월드",
+            known_video_ids=set(),
+            max_new_videos=5,
+            min_duration_seconds=600,
+        )
+        # All 3 real videos survive, not 5 shorts
+        assert len(new) == 3
+        assert {v.video_id for v in new} == {"vid00008", "vid00009", "vid00010"}
 
     def test_rss_catchup_on_saturation_but_catchup_fails_returns_rss(self, monkeypatch):
         """Saturation triggers catchup; if catchup fails, we still return the RSS new videos."""

@@ -247,6 +247,10 @@ def run(
     # Per-channel discovery cap — how many NEW videos per channel per run
     max_per_channel = pipeline_cfg.get("max_new_videos_per_channel", 10)
 
+    # Duration floor — filter out Shorts / tiny clips before processing.
+    # 600s = 10 minutes. None or 0 disables the filter.
+    min_duration_seconds = pipeline_cfg.get("min_duration_seconds", 600)
+
     # Per-channel known set so the saturation check is scoped correctly.
     # See list_processed_video_ids_by_channel for the rationale.
     known_by_channel = list_processed_video_ids_by_channel(briefings_dir)
@@ -285,6 +289,7 @@ def run(
                 channel_name=channel["name"],
                 known_video_ids=channel_known,
                 max_new_videos=max_per_channel,
+                min_duration_seconds=min_duration_seconds,
             )
         except DiscoveryFailure as e:
             logger.error("[%s] discovery failed, skipping channel: %s", channel_slug, e)
