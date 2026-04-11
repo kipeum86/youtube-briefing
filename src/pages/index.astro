@@ -36,6 +36,21 @@ if (recentBriefings.length === 0 && allBriefings.length > 0) {
   recentBriefings = allBriefings.slice(0, 10);
 }
 
+// Keep one latest Park Jong-hoon briefing visible on the front page even
+// when it falls just outside the rolling 7-day window.
+if (!recentBriefings.some((b: BriefingEntry) => b.data.channel_slug === "parkjonghoon")) {
+  const latestParkJonghoon = allBriefings.find(
+    (b: BriefingEntry) => b.data.channel_slug === "parkjonghoon",
+  );
+  if (latestParkJonghoon) {
+    recentBriefings = [...recentBriefings, latestParkJonghoon];
+    recentBriefings.sort(
+      (a: BriefingEntry, b: BriefingEntry) =>
+        b.data.published_at.getTime() - a.data.published_at.getTime(),
+    );
+  }
+}
+
 // Compute channel list for the filter chips (deterministic order from config)
 const channelOrder = [
   { slug: "parkjonghoon", name: "박종훈" },
