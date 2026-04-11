@@ -360,20 +360,11 @@ body {
   background: var(--accent);
 }
 
-.briefing.read {
-  opacity: 0.55;
-}
-
-/* Don't dim the card you're actively reading. The .read fade is meant to
-   de-emphasize finished briefings on return visits, not the one currently
-   expanded under your eyes. */
-.briefing.read[data-expanded="true"] {
-  opacity: 1;
-}
-
-.briefing.failed {
-  opacity: 0.75;
-}
+/* Read-state no longer dims the card. The previous 0.55 opacity made
+   already-seen briefings hard to read on return visits. Read-tracking
+   still runs (markRead + localStorage + unread ribbon counter) so the
+   "새로운 브리핑 N건" badge stays accurate, but the visual weight stays
+   at 100%. Same for failed cards — no dimming. */
 
 .briefing .meta {
   font-size: 12px;
