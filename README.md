@@ -2,6 +2,8 @@
 
 _Auto-summarized Korean economics & current-affairs YouTube, as an editorial feed._
 
+**Live site:** [kipeum86.github.io/youtube-briefing](https://kipeum86.github.io/youtube-briefing/)
+
 **TL;DR (English).** A personal tool that watches 5 Korean YouTube channels
 (박종훈, 슈카월드, 언더스탠딩, 지식인사이드, 지구본연구소), extracts transcripts,
 generates 700–1,200-character Korean deep-analysis summaries with Gemini Flash,
