@@ -94,8 +94,20 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
         <slot />
 
         <footer class="site-footer">
-          <span>다음 업데이트 · 월·수·금 06:00 KST</span>
-          <span>YOUTUBE BRIEFING · {volNumber} · 2026</span>
+          <div class="footer-row">
+            <span>다음 업데이트 · 월·수·금 06:00 KST</span>
+            <span>YOUTUBE BRIEFING · {volNumber} · 2026</span>
+          </div>
+          <div class="footer-row footer-credit">
+            <span>BUILT BY KIPEUM LEE · CLAUDE CODE + CODEX</span>
+            <a
+              href="https://github.com/kipeum86/youtube-briefing"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="View source on GitHub">
+              GITHUB ↗
+            </a>
+          </div>
         </footer>
       </div>
     </div>
