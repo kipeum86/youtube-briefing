@@ -44,22 +44,13 @@ pipeline:
   retry_backoff_seconds: 5
 
 channels:
-  - id: "UCOB62fKRT7b73X7tRxMuN2g"  # https://www.youtube.com/@kpunch
-    name: "박종훈의 지식한방"
-    slug: parkjonghoon
-
-  - id: "UCsJ6RuBiTVWRX156FVbeaGg"  # https://www.youtube.com/@syukaworld
-    name: "슈카월드"
-    slug: shuka
-
-  - id: "UCIUni4ScRp4mqPXsxy62L5w"  # https://www.youtube.com/@understanding.
-    name: "언더스탠딩"
-    slug: understanding
-
-  - id: "UCA_hgsFzmynpv1zkvA5A7jA"  # https://www.youtube.com/@지식인사이드
-    name: "지식 인사이드"
-    slug: jisik-inside
-
-  - id: "UCstI8HwGQsHdqLDgyH0PImw"  # https://www.youtube.com/@globelab
-    name: "최준영 박사의 지구본 연구소"
-    slug: globelab
+  # Add your channels here. To find a YouTube channel ID from a @handle:
+  #   python scripts/resolve-channel-ids.py @your-channel-handle
+  # Each entry needs:
+  #   id:    the UCxxxxxxxxxxxxxxxxxxxxxx format channel ID
+  #   name:  the channel's display name (used in briefing metadata + UI)
+  #   slug:  a lowercase-alphanumeric short identifier, used in filenames
+  #          and as the channel filter key in the frontend
+  - id: "UCxxxxxxxxxxxxxxxxxxxxxx"
+    name: "Example Channel"
+    slug: example

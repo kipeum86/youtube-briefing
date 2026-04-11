@@ -46,3 +46,10 @@ test-results/
 # Claude Code session state (not useful for other developers)
 .claude/
 .gstack/
+
+# User-specific files — each fork has its own channels and briefings.
+# config.yaml is the live config used by the pipeline. config.example.yaml
+# is the tracked template new forks copy from.
+config.yaml
+data/briefings/*.json
+!data/briefings/.gitkeep

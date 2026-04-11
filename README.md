@@ -9,6 +9,27 @@ and publishes them as a static Astro site on GitHub Pages. Updates Mon/Wed/Fri a
 06:00 KST via a local `launchd` timer. No database, no Sheets, no Google Cloud.
 Fork-friendly: clone, add your Gemini API key, edit the channel list, run the pipeline.
 
+## Forking this project
+
+This repo is designed to be forked. Each user brings their own channel
+list and their own Gemini API key. The live `config.yaml` is gitignored,
+so clones of upstream see a clean template at `config.example.yaml`.
+
+To set up your own fork:
+
+```bash
+cp config.example.yaml config.yaml
+```
+
+Then edit `config.yaml` to list the YouTube channels you want to follow.
+See `scripts/resolve-channel-ids.py` for converting `@handle` URLs to
+channel IDs. See the "Setup" section below for secrets and deployment.
+
+**Note on language:** The current version assumes Korean content and
+Korean output. Multi-language support is planned but not yet shipped.
+For now, forks should expect to read and modify the summarizer prompt
+in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
+
 ---
 
 ## 뭘 하는 건가
