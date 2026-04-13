@@ -40,7 +40,8 @@ test.describe("index page", () => {
     await expect(page.locator('[role="radio"]', { hasText: "슈카월드" })).toBeVisible();
     await expect(page.locator('[role="radio"]', { hasText: "언더스탠딩" })).toBeVisible();
     await expect(page.locator('[role="radio"]', { hasText: "지구본연구소" })).toBeVisible();
-    await expect(page.locator('[role="radio"]', { hasText: "메르(블로그)" })).toBeVisible();
+    await expect(page.locator('[role="radio"]', { hasText: "메르 블로그" })).toBeVisible();
+    await expect(page.locator('[role="radio"]').nth(1)).toHaveText("메르 블로그");
 
     // At least one briefing card
     const cards = page.locator("article.briefing");
