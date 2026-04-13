@@ -16,6 +16,16 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("index page", () => {
+  const expectedChipOrder = [
+    "전체",
+    "메르(블로그)",
+    "박종훈",
+    "슈카월드",
+    "언더스탠딩",
+    "지식인사이드",
+    "지구본연구소",
+  ];
+
   // Each test gets a fresh browser context via the per-test `page` fixture,
   // so localStorage is already empty at test start. We do NOT use
   // addInitScript to clear storage because it runs on every navigation
@@ -40,8 +50,8 @@ test.describe("index page", () => {
     await expect(page.locator('[role="radio"]', { hasText: "슈카월드" })).toBeVisible();
     await expect(page.locator('[role="radio"]', { hasText: "언더스탠딩" })).toBeVisible();
     await expect(page.locator('[role="radio"]', { hasText: "지구본연구소" })).toBeVisible();
-    await expect(page.locator('[role="radio"]', { hasText: "메르 블로그" })).toBeVisible();
-    await expect(page.locator('[role="radio"]').nth(1)).toHaveText("메르 블로그");
+    await expect(page.locator('[role="radio"]', { hasText: "메르(블로그)" })).toBeVisible();
+    await expect(page.locator("[data-channel-filter] [role='radio']")).toHaveText(expectedChipOrder);
 
     // At least one briefing card
     const cards = page.locator("article.briefing");
@@ -98,6 +108,9 @@ test.describe("index page", () => {
     for (let i = 0; i < count; i++) {
       await expect(nonShukaCards.nth(i)).not.toBeVisible();
     }
+
+    // Chip order should remain stable after filtering
+    await expect(page.locator("[data-channel-filter] [role='radio']")).toHaveText(expectedChipOrder);
   });
 
   test("dismissible intro removes itself and persists", async ({ page }) => {
