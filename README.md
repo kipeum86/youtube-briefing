@@ -16,7 +16,8 @@ Gemini API key, edit the source list, run the pipeline.
 
 This repo is designed to be forked. Each user brings their own YouTube/blog
 source list and their own Gemini API key. The live `config.yaml` is gitignored,
-so clones of upstream see a clean template at `config.example.yaml`.
+so clones of upstream see a clean template at `config.example.yaml`, and GitHub
+Actions reads the real config from the `PIPELINE_CONFIG_YAML` repository secret.
 
 To set up your own fork:
 
@@ -54,7 +55,7 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 > secret 에 `~/.notebooklm/storage_state.json` 내용을 넣으면 GitHub runner
 > 에서도 진짜 사용자처럼 요청이 나감. Gate 0 에서 실측 검증 완료.
 
-## 설정 (6단계)
+## 설정 (7단계)
 
 모든 실행은 GitHub Actions 에서. 네 Mac 은 **첫 세팅** 시에만 필요함 (채널 ID 조회, NotebookLM 로그인).
 
@@ -100,9 +101,14 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 
    수정된 `config.yaml` 을 커밋 + 푸시.
 
-5. **GitHub Pages 활성화** — 저장소 Settings → Pages → Source: "GitHub Actions"
+5. **config.yaml 업로드 → GitHub secret**
+   ```bash
+   gh secret set PIPELINE_CONFIG_YAML -R YOUR_USERNAME/youtube-briefing < config.yaml
+   ```
 
-6. **첫 파이프라인 실행** — 수동 trigger 로 스모크 테스트
+6. **GitHub Pages 활성화** — 저장소 Settings → Pages → Source: "GitHub Actions"
+
+7. **첫 파이프라인 실행** — 수동 trigger 로 스모크 테스트
    ```bash
    # 1개 영상으로 먼저 검증
    gh workflow run pipeline -R YOUR_USERNAME/youtube-briefing \
