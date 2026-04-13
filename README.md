@@ -5,12 +5,13 @@ _Auto-summarized Korean economics & current-affairs YouTube plus selected Naver 
 **Live site:** [kipeum86.github.io/youtube-briefing](https://kipeum86.github.io/youtube-briefing/)
 
 **TL;DR (English).** A personal tool that watches 5 Korean YouTube channels
-(박종훈, 슈카월드, 언더스탠딩, 지식인사이드, 지구본연구소), extracts transcripts,
-tracks optional Naver blog RSS sources, generates 700–1,200-character Korean
-deep-analysis summaries with Gemini Flash, and publishes them as a static Astro
-site on GitHub Pages. Updates Mon/Wed/Fri at 06:00 KST via a local `launchd`
-timer. No database, no Sheets, no Google Cloud. Fork-friendly: clone, add your
-Gemini API key, edit the source list, run the pipeline.
+(박종훈, 슈카월드, 언더스탠딩, 지식인사이드, 지구본연구소) plus Mer's Naver
+blog (메르의 네이버 블로그), extracts transcripts / blog post text,
+generates 700–1,200-character Korean deep-analysis summaries with Gemini Flash,
+and publishes them as a static Astro site on GitHub Pages. Updates Mon/Wed/Fri
+at 06:00 KST via GitHub Actions. No database, no Sheets, no Google Cloud.
+Fork-friendly: clone, add your Gemini API key, edit the source list, run the
+pipeline.
 
 ## Forking this project
 
@@ -40,11 +41,12 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 ## 뭘 하는 건가
 
 바쁠 때 경제·시사 유튜브와 블로그를 다 보기 어려워서 만든 개인용 브리핑 툴.
-월·수·금 아침마다 다섯 개 채널의 새 영상과 선택한 네이버 블로그 글을 자동 수집하고,
+월·수·금 아침마다 다섯 개 유튜브 채널과 한 개 네이버 블로그의 새 콘텐츠를 자동 수집하고,
 700–1,200자 한국어 심층 요약으로 정리해서 에디토리얼 피드로 보여준다.
 
-- **타겟 채널:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소
-- **선택 블로그:** 메르의 블로그 (`https://blog.naver.com/ranto28`)
+- **타겟 소스:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소, 메르의 네이버 블로그
+- **유튜브 채널:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소
+- **네이버 블로그:** 메르의 네이버 블로그 (`https://blog.naver.com/ranto28`)
 - **업데이트:** 주 3회 (Mon/Wed/Fri 06:00 KST, GitHub Actions cron)
 - **스택:** Python 파이프라인 (GitHub Actions + NotebookLM session) + Astro 정적 사이트 (GitHub Pages)
 - **저장소:** JSON 파일 in git (Google Sheets, DB 없음)
@@ -99,6 +101,13 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
    네이버 블로그를 같이 보고 싶다면 `blogs:` 아래에
    `blog_id`, `name`, `slug` 를 추가.
 
+   ```yaml
+   blogs:
+     - blog_id: "ranto28"
+       name: "메르의 블로그"
+       slug: "mer"
+   ```
+
    수정된 `config.yaml` 을 커밋 + 푸시.
 
 5. **config.yaml 업로드 → GitHub secret**
@@ -116,7 +125,7 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
      -f limit=1
    gh run watch
 
-   # 성공하면 전체 실행 (75개 영상, ~50분)
+   # 성공하면 전체 실행 (유튜브 5개 + 블로그 1개, 실행 시간은 소스 수에 따라 변동)
    gh workflow run pipeline -R YOUR_USERNAME/youtube-briefing
    ```
 
