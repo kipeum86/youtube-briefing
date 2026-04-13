@@ -47,6 +47,14 @@ class DiscoverySource(str, Enum):
 
     RSS = "rss"
     YTDLP_CATCHUP = "ytdlp_catchup"
+    NAVER_BLOG_RSS = "naver_blog_rss"
+
+
+class SourceType(str, Enum):
+    """Which upstream source produced this briefing."""
+
+    YOUTUBE = "youtube"
+    NAVER_BLOG = "naver_blog"
 
 
 class VideoMeta(BaseModel):
@@ -58,12 +66,15 @@ class VideoMeta(BaseModel):
     """
 
     video_id: Annotated[str, Field(min_length=5, max_length=20)]
-    channel_id: Annotated[str, Field(pattern=r"^UC[A-Za-z0-9_-]{22}$")]
+    channel_id: Annotated[str, Field(min_length=2, max_length=120)]
     channel_slug: str
     channel_name: str
     title: str
     published_at: datetime
     discovery_source: DiscoverySource
+    source_type: SourceType = SourceType.YOUTUBE
+    source_url: HttpUrl | None = None
+    thumbnail_url: HttpUrl | None = None
     duration_seconds: int | None = None
 
 
@@ -88,6 +99,7 @@ class Briefing(BaseModel):
     thumbnail_url: HttpUrl
     duration_seconds: int
     discovery_source: DiscoverySource
+    source_type: SourceType = SourceType.YOUTUBE
 
     # Outcome
     status: BriefingStatus

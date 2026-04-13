@@ -54,3 +54,12 @@ channels:
   - id: "UCxxxxxxxxxxxxxxxxxxxxxx"
     name: "Example Channel"
     slug: example
+
+blogs:
+  # Optional Naver blog sources. Each entry needs:
+  #   blog_id: the blog account id used in https://blog.naver.com/<blog_id>
+  #   name:    display name used in briefing metadata + UI
+  #   slug:    lowercase identifier used in filenames and filters
+  - blog_id: "exampleblog"
+    name: "Example Naver Blog"
+    slug: example-blog

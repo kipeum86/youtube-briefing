@@ -367,10 +367,19 @@ body {
    at 100%. Same for failed cards — no dimming. */
 
 .briefing .meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
   font-size: 12px;
   color: var(--ink-soft);
   font-weight: 900;
   margin-bottom: 18px;
+}
+
+.briefing .meta .source-badge {
+  color: var(--meta);
+  letter-spacing: 1.2px;
 }
 
 .briefing .meta .channel {
@@ -379,7 +388,6 @@ body {
 
 .briefing .meta .sep {
   color: var(--rule);
-  margin: 0 8px;
 }
 
 .briefing .meta .date {
@@ -389,7 +397,6 @@ body {
 
 .briefing .meta .status-failed {
   color: var(--accent);
-  margin-left: 8px;
 }
 
 .briefing h2 {

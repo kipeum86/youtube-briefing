@@ -43,7 +43,7 @@ def _make_meta(vid: str, slug: str = "shuka", channel_name: str = "슈카월드"
     )
 
 
-def _write_config(tmp_path: Path, channels: list[dict]) -> Path:
+def _write_config(tmp_path: Path, channels: list[dict], blogs: list[dict] | None = None) -> Path:
     config = {
         "pipeline": {
             "summarizer": {"provider": "gemini", "model": "gemini-2.5-flash", "prompt_version": "v1"},
@@ -53,6 +53,7 @@ def _write_config(tmp_path: Path, channels: list[dict]) -> Path:
             "log_dir": str(tmp_path / "logs"),
         },
         "channels": channels,
+        "blogs": blogs or [],
     }
     path = tmp_path / "config.yaml"
     path.write_text(yaml.dump(config), encoding="utf-8")
@@ -233,6 +234,44 @@ class TestRunOrchestrator:
 
         exit_code = run.run(config_path=config_path, briefings_dir=briefings_dir)
         assert exit_code == 0
+
+    def test_blog_only_config_writes_new_posts(self, tmp_path: Path, fake_summarizer, monkeypatch):
+        config_path = _write_config(
+            tmp_path,
+            channels=[],
+            blogs=[{"blog_id": "ranto28", "name": "메르의 블로그", "slug": "mer"}],
+        )
+        briefings_dir = tmp_path / "briefings"
+
+        blog_meta = VideoMeta(
+            video_id="224250228854",
+            channel_id="ranto28",
+            channel_slug="mer",
+            channel_name="메르의 블로그",
+            title="트럼프, 호르무즈해협 완전 봉쇄 선언",
+            published_at=datetime(2026, 4, 13, tzinfo=timezone.utc),
+            discovery_source=DiscoverySource.NAVER_BLOG_RSS,
+            source_type="naver_blog",
+            source_url="https://blog.naver.com/ranto28/224250228854",
+            thumbnail_url="https://ssl.pstatic.net/static/blog/icon/favicon.ico",
+            duration_seconds=0,
+        )
+
+        monkeypatch.setattr(run, "discover_new_videos", lambda **kw: [])
+        monkeypatch.setattr(run, "discover_new_blog_posts", lambda **kw: [blog_meta])
+        monkeypatch.setattr(
+            run,
+            "extract_blog_post_text",
+            lambda url, item_id: TranscriptResult(text="본문 " * 200, source="naver_blog_html"),
+        )
+
+        exit_code = run.run(config_path=config_path, briefings_dir=briefings_dir)
+        assert exit_code == 0
+        files = list(briefings_dir.glob("*.json"))
+        assert len(files) == 1
+        loaded = files[0].read_text(encoding="utf-8")
+        assert '"source_type": "naver_blog"' in loaded
+        assert '"video_url": "https://blog.naver.com/ranto28/224250228854"' in loaded
 
     def test_all_channels_fail_returns_exit_2(self, tmp_path: Path, fake_summarizer, monkeypatch):
         config_path = _write_config(

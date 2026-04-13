@@ -1,20 +1,21 @@
 # YouTube Briefing
 
-_Auto-summarized Korean economics & current-affairs YouTube, as an editorial feed._
+_Auto-summarized Korean economics & current-affairs YouTube plus selected Naver blogs, as an editorial feed._
 
 **Live site:** [kipeum86.github.io/youtube-briefing](https://kipeum86.github.io/youtube-briefing/)
 
 **TL;DR (English).** A personal tool that watches 5 Korean YouTube channels
 (박종훈, 슈카월드, 언더스탠딩, 지식인사이드, 지구본연구소), extracts transcripts,
-generates 700–1,200-character Korean deep-analysis summaries with Gemini Flash,
-and publishes them as a static Astro site on GitHub Pages. Updates Mon/Wed/Fri at
-06:00 KST via a local `launchd` timer. No database, no Sheets, no Google Cloud.
-Fork-friendly: clone, add your Gemini API key, edit the channel list, run the pipeline.
+tracks optional Naver blog RSS sources, generates 700–1,200-character Korean
+deep-analysis summaries with Gemini Flash, and publishes them as a static Astro
+site on GitHub Pages. Updates Mon/Wed/Fri at 06:00 KST via a local `launchd`
+timer. No database, no Sheets, no Google Cloud. Fork-friendly: clone, add your
+Gemini API key, edit the source list, run the pipeline.
 
 ## Forking this project
 
-This repo is designed to be forked. Each user brings their own channel
-list and their own Gemini API key. The live `config.yaml` is gitignored,
+This repo is designed to be forked. Each user brings their own YouTube/blog
+source list and their own Gemini API key. The live `config.yaml` is gitignored,
 so clones of upstream see a clean template at `config.example.yaml`.
 
 To set up your own fork:
@@ -23,9 +24,10 @@ To set up your own fork:
 cp config.example.yaml config.yaml
 ```
 
-Then edit `config.yaml` to list the YouTube channels you want to follow.
-See `scripts/resolve-channel-ids.py` for converting `@handle` URLs to
-channel IDs. See the "Setup" section below for secrets and deployment.
+Then edit `config.yaml` to list the sources you want to follow.
+See `scripts/resolve-channel-ids.py` for converting YouTube `@handle` URLs to
+channel IDs, and use `blogs:` for optional Naver blog sources. See the "Setup"
+section below for secrets and deployment.
 
 **Note on language:** The current version assumes Korean content and
 Korean output. Multi-language support is planned but not yet shipped.
@@ -36,11 +38,12 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 
 ## 뭘 하는 건가
 
-바쁠 때 경제·시사 유튜브를 볼 시간이 없어서 만든 개인용 브리핑 툴.
-월·수·금 아침마다 다섯 개 채널의 새 영상 트랜스크립트를 자동 추출하고,
+바쁠 때 경제·시사 유튜브와 블로그를 다 보기 어려워서 만든 개인용 브리핑 툴.
+월·수·금 아침마다 다섯 개 채널의 새 영상과 선택한 네이버 블로그 글을 자동 수집하고,
 700–1,200자 한국어 심층 요약으로 정리해서 에디토리얼 피드로 보여준다.
 
 - **타겟 채널:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소
+- **선택 블로그:** 메르의 블로그 (`https://blog.naver.com/ranto28`)
 - **업데이트:** 주 3회 (Mon/Wed/Fri 06:00 KST, GitHub Actions cron)
 - **스택:** Python 파이프라인 (GitHub Actions + NotebookLM session) + Astro 정적 사이트 (GitHub Pages)
 - **저장소:** JSON 파일 in git (Google Sheets, DB 없음)
@@ -82,7 +85,7 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 
    세션은 몇 주 단위로 만료. 실패하기 시작하면 위 두 줄 다시 실행.
 
-4. **채널 ID 조회 + config.yaml 수정** (로컬에서)
+4. **소스 설정 + config.yaml 수정** (로컬에서)
    ```bash
    brew install yt-dlp
    python -m venv .venv && source .venv/bin/activate
@@ -91,6 +94,9 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
    python scripts/resolve-channel-ids.py https://www.youtube.com/@syukaworld
    # 출력: UCxxxxxxxxxxxxxxxx — 이걸 config.yaml 각 채널 id: 에 붙여넣기
    ```
+
+   네이버 블로그를 같이 보고 싶다면 `blogs:` 아래에
+   `blog_id`, `name`, `slug` 를 추가.
 
    수정된 `config.yaml` 을 커밋 + 푸시.
 
@@ -125,6 +131,7 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 │       │                                                      │
 │       ├─ fetchers/discovery.py  (YouTube RSS → yt-dlp        │
 │       │                          catchup)                    │
+│       ├─ fetchers/naver_blog.py (Naver RSS → mobile post)   │
 │       │                                                      │
 │       ├─ fetchers/transcript_extractor.py (3-tier)           │
 │       │   ├─ tier 1: notebooklm-py (PRIMARY)                 │

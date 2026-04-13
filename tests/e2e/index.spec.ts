@@ -35,11 +35,12 @@ test.describe("index page", () => {
     await expect(archiveTab).not.toHaveAttribute("aria-current", "page");
 
     // Channel filter chips — "전체" active, 5 channels listed
-    await expect(page.locator('[role="radiogroup"][aria-label="채널 필터"]')).toBeVisible();
+    await expect(page.locator('[role="radiogroup"][aria-label="소스 필터"]')).toBeVisible();
     await expect(page.locator('[role="radio"]', { hasText: "전체" })).toHaveAttribute("aria-checked", "true");
     await expect(page.locator('[role="radio"]', { hasText: "슈카월드" })).toBeVisible();
     await expect(page.locator('[role="radio"]', { hasText: "언더스탠딩" })).toBeVisible();
     await expect(page.locator('[role="radio"]', { hasText: "지구본연구소" })).toBeVisible();
+    await expect(page.locator('[role="radio"]', { hasText: "메르(블로그)" })).toBeVisible();
 
     // At least one briefing card
     const cards = page.locator("article.briefing");

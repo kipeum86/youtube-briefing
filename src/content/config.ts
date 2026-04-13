@@ -14,6 +14,7 @@ import { defineCollection, z } from "astro:content";
 import { glob } from "astro/loaders";
 
 const briefingStatus = z.enum(["ok", "failed"]);
+const sourceType = z.enum(["youtube", "naver_blog"]);
 
 const failureReason = z.enum([
   "session_expired",
@@ -26,7 +27,7 @@ const failureReason = z.enum([
   "wrong_language",
 ]);
 
-const discoverySource = z.enum(["rss", "ytdlp_catchup"]);
+const discoverySource = z.enum(["rss", "ytdlp_catchup", "naver_blog_rss"]);
 
 const briefingSchema = z.object({
   video_id: z.string().min(5).max(20),
@@ -38,6 +39,7 @@ const briefingSchema = z.object({
   thumbnail_url: z.string().url(),
   duration_seconds: z.number().int(),
   discovery_source: discoverySource,
+  source_type: sourceType.default("youtube"),
   status: briefingStatus,
   summary: z.string().nullable(),
   failure_reason: failureReason.nullable(),

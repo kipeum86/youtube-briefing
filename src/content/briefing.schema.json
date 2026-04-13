@@ -13,7 +13,8 @@
       "description": "How a video was discovered by the pipeline.",
       "enum": [
         "rss",
-        "ytdlp_catchup"
+        "ytdlp_catchup",
+        "naver_blog_rss"
       ],
       "title": "DiscoverySource",
       "type": "string"
@@ -31,6 +32,15 @@
         "wrong_language"
       ],
       "title": "FailureReason",
+      "type": "string"
+    },
+    "SourceType": {
+      "description": "Which upstream source produced this briefing.",
+      "enum": [
+        "youtube",
+        "naver_blog"
+      ],
+      "title": "SourceType",
       "type": "string"
     }
   },
@@ -79,6 +89,10 @@
     },
     "discovery_source": {
       "$ref": "#/$defs/DiscoverySource"
+    },
+    "source_type": {
+      "$ref": "#/$defs/SourceType",
+      "default": "youtube"
     },
     "status": {
       "$ref": "#/$defs/BriefingStatus"

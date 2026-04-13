@@ -34,21 +34,41 @@ function formatKstDate(iso: Date): string {
 const dateStr = formatKstDate(data.published_at);
 const isFailed = data.status === "failed";
 const cardId = `briefing-${data.video_id}`;
+const isBlog = data.source_type === "naver_blog";
+const failureSourceKey = isBlog ? "naver_blog" : "youtube";
+const sourceBadge = isBlog ? "NAVER BLOG" : "YOUTUBE";
+const ctaLabel = isBlog ? "원문 보기" : "원본 영상";
+const failedLabel = isBlog ? "이 글은 요약하지 못했습니다. 원문에서 직접 확인하세요." : "이 영상은 요약하지 못했습니다. 원본 영상에서 직접 확인하세요.";
 
 // Failure reason → Korean display string (mirrors Pydantic FailureReason enum)
-const failureMessages: Record<string, string> = {
-  session_expired: "일시적 인증 문제",
-  video_removed: "영상이 삭제되었거나 비공개",
-  members_only: "멤버십 전용 영상",
-  age_restricted: "연령 제한 영상",
-  empty_transcript: "음성 없음 또는 추출 불가",
-  transcripts_disabled: "자막이 비활성화된 영상",
-  summarizer_refused: "요약 처리 실패",
-  wrong_language: "요약 언어 오류",
+const failureMessages: Record<string, { youtube: string; naver_blog: string }> = {
+  session_expired: { youtube: "일시적 인증 문제", naver_blog: "일시적 인증 문제" },
+  video_removed: {
+    youtube: "영상이 삭제되었거나 비공개",
+    naver_blog: "글이 삭제되었거나 비공개",
+  },
+  members_only: {
+    youtube: "멤버십 전용 영상",
+    naver_blog: "접근이 제한된 글",
+  },
+  age_restricted: {
+    youtube: "연령 제한 영상",
+    naver_blog: "연령 제한 콘텐츠",
+  },
+  empty_transcript: {
+    youtube: "음성 없음 또는 추출 불가",
+    naver_blog: "본문 추출 불가",
+  },
+  transcripts_disabled: {
+    youtube: "자막이 비활성화된 영상",
+    naver_blog: "본문이 비활성화됐거나 추출 불가",
+  },
+  summarizer_refused: { youtube: "요약 처리 실패", naver_blog: "요약 처리 실패" },
+  wrong_language: { youtube: "요약 언어 오류", naver_blog: "요약 언어 오류" },
 };
 
 const failureDisplay = isFailed && data.failure_reason
-  ? failureMessages[data.failure_reason] ?? data.failure_reason
+  ? failureMessages[data.failure_reason]?.[failureSourceKey] ?? data.failure_reason
   : null;
 
 /**
@@ -185,6 +205,7 @@ const parsedSummary: ParsedSummary = !isFailed && data.summary
   data-expanded="false"
   aria-labelledby={`${cardId}-title`}>
   <div class="meta">
+    <span class="source-badge">{sourceBadge}</span>
     <span class="channel">{data.channel_name}</span>
     <span class="sep">/</span>
     <span class="date">{dateStr}</span>
@@ -196,7 +217,7 @@ const parsedSummary: ParsedSummary = !isFailed && data.summary
   {
     isFailed ? (
       <p class="preview">
-        이 영상은 요약하지 못했습니다. 원본 영상에서 직접 확인하세요.
+        {failedLabel}
         {failureDisplay && ` (이유: ${failureDisplay})`}
       </p>
     ) : (
@@ -230,6 +251,6 @@ const parsedSummary: ParsedSummary = !isFailed && data.summary
         </button>
       )
     }
-    <a href={data.video_url} target="_blank" rel="noopener noreferrer">원본 영상</a>
+    <a href={data.video_url} target="_blank" rel="noopener noreferrer">{ctaLabel}</a>
   </div>
 </article>

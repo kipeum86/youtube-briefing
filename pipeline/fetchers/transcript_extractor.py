@@ -37,7 +37,14 @@ from typing import Literal
 logger = logging.getLogger(__name__)
 
 
-Source = Literal["transcript_api_stenographer", "transcript_api_auto", "notebooklm", "ytdlp_stenographer", "ytdlp_auto"]
+Source = Literal[
+    "transcript_api_stenographer",
+    "transcript_api_auto",
+    "notebooklm",
+    "ytdlp_stenographer",
+    "ytdlp_auto",
+    "naver_blog_html",
+]
 
 
 class TranscriptFailure(Exception):

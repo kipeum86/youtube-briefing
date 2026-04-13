@@ -51,13 +51,14 @@ if (!recentBriefings.some((b: BriefingEntry) => b.data.channel_slug === "parkjon
   }
 }
 
-// Compute channel list for the filter chips (deterministic order from config)
+// Compute source list for the filter chips (deterministic order matching config)
 const channelOrder = [
   { slug: "parkjonghoon", name: "박종훈" },
   { slug: "shuka", name: "슈카월드" },
   { slug: "understanding", name: "언더스탠딩" },
   { slug: "jisik-inside", name: "지식인사이드" },
   { slug: "globelab", name: "지구본연구소" },
+  { slug: "mer", name: "메르(블로그)" },
 ];
 
 // Dim chips that have no briefings in the current view
@@ -106,8 +107,9 @@ const issueDate = formatKstDot(newestDate);
       <>
         <div class="intro" data-intro>
           <p>
-            <b>5개 한국 경제·시사 유튜브 채널</b>을 월·수·금 아침마다 700–1,200자 한국어로 요약하는
-            에디토리얼 피드. NotebookLM + Gemini로 자동 생성.
+            <b>5개 한국 경제·시사 유튜브 채널 + 1개 네이버 블로그</b>를 월·수·금 아침마다 700–1,200자
+            한국어로 요약하는 에디토리얼 피드. 메르(블로그)를 포함해, 유튜브는 NotebookLM, 블로그는
+            RSS + 모바일 본문 추출, 요약은 Gemini로 자동 생성.
           </p>
           <button type="button" aria-label="소개 닫기" data-dismiss-intro>×</button>
         </div>
