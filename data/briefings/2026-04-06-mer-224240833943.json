@@ -1,0 +1,19 @@
+{
+  "video_id": "224240833943",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "인적분할 vs 물적분할 (feat 한화, 풍산)",
+  "published_at": "2026-04-05T15:10:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224240833943",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA0MDRfMjMg/MDAxNzc1MzAxNDAwOTg4.GpfIxrZeWXZMYMdbvLuuEzWFuq7eTgqzOC6VEojgbsMg.rIobubD1oWm7ikjabyMZONmE4Gxr_5i22Qa8uaQNJ9cg.JPEG/yatydslz.jpg?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "ok",
+  "summary": "**인적분할과 상속세 해법**\n\n기업 분할은 모회사가 신설회사 지분 100%를 보유하는 물적분할과 달리, 인적분할은 기존 주주가 신설회사 주식을 지분율대로 무상 배정받는 방식이다. 인적분할은 주주 가치 훼손 논란이 적어 기업가치 재평가 및 승계 전략에 효과적으로 활용되며, 한화그룹과 풍산 사례처럼 오너 일가의 상속 및 경영권 강화 도구로 쓰인다.\n\n한화그룹은 김승연 회장 3남 승계와 상속세 재원 마련을 위해 인적분할을 추진한다. 김 회장 한화 지분 11.33%(8천억 원 이상)에는 5천억 원 이상 상속세가 예상된다. 한화에너지는 FI에 지분 20%를 1.1조 원에 매각, 막내 아들은 8천억 원을 확보해 신설 법인 지분 강화에 활용할 계획이다. 한화에너지 상장 시 최소 5.5조 원 시총이 기대되며, 이는 3형제 상속세 해결에 기여할 것이다. 풍산은 '구리회사'로 저평가된 방산 가치(방산 평균 PER 40배 대비 14배) 재평가와 오너 장남 미국 시민권 문제 및 상속세 재원 마련 목적으로 구리사업과 방산 인적분할을 검토 중이다. 방산 매출 30%, 영업이익 75%인 풍산 탄약사업부 매각 입찰에는 한화에어로스페이스가 4월 3일 최종 제안서를 제출했다. 2025년부터는 인적분할 시 자사주 신주 배정이 금지된다.\n\n한국 기업들은 3세 경영 전환과 함께 지배구조 개편, 막대한 상속세 문제에 직면하고 있다. 인적분할은 주주 친화적 방식으로 포장되지만, 실제로는 오너 일가 지배력 강화와 승계 재원 마련에 기여한다. 투자자는 분할 공시 후 거래 정지 등 리스크를 고려하며, 상속 및 지배구조 변화가 시장에 미치는 영향을 주시해야 한다.",
+  "failure_reason": null,
+  "generated_at": "2026-04-13T08:13:50.910833Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}
