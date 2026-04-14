@@ -1,0 +1,19 @@
+{
+  "video_id": "224238633380",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "HBM 전쟁 근황 (feat 삼성전자, SK하이닉스, 베이스다이, zHBM)",
+  "published_at": "2026-04-02T15:10:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224238633380",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA0MDJfMTUg/MDAxNzc1MTIxNzg2NDc4.0dHUi8uTjBHrB-L1RCjOwnMIF43WF0xkYqG94oX5tpgg.Z-JXeB2tZ-PeXNutpzjSHtPqOt9zyHqhc1A1FXCs5Bwg.PNG/Gemini_Generated_Image_klyzfxklyzfxklyz.png?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "ok",
+  "summary": "**HBM 기술 경쟁: 삼성, SK 전략 변화**\n\nHBM(고대역폭 메모리)은 D램을 수직으로 쌓아 데이터 처리 속도를 획기적으로 향상시킨 기술로, 인공지능(AI) 시대의 도래와 함께 핵심 반도체로 급부상했다. 과거 삼성전자는 낮은 가성비와 수요 부족으로 2019년 사업을 철수했으나, AI 수요 폭증에 힘입어 HBM3 세대부터 성능이 비약적으로 개선되며 시장의 주목을 다시 받기 시작했다. 현재 HBM 시장은 삼성전자와 SK하이닉스 간 치열한 기술 경쟁이 전개되고 있으며, HBM4 세대부터는 고객 맞춤형 '커스텀 HBM' 시대가 열리면서 경쟁 양상이 더욱 복잡해지고 있다.\n\n초기 HBM은 4층 적층, 8GB 용량의 한계와 고비용으로 시장성이 낮았으나, HBM3에 이르러 12층 적층, 24GB 용량, 소비전력 1/4 수준 개선을 이루며 AI 연산에 필수적인 고성능 메모리가 되었다. 현재 HBM은 D램 생산량의 10%에 불과하지만 매출 비중은 30%를 넘어 고부가가치를 창출한다. 삼성전자는 2025년 3분기 HBM3E 납품 성공 후, 2026년 2월 12일 세계 최초로 HBM4 양산 출하를 공식 발표, 초당 11.7Gbps 데이터 처리 속도와 함께 4나노 파운드리 공정을 베이스 다이에 적용하여 전력 효율 및 발열 특성을 개선했다고 밝혔다. 반면 SK하이닉스는 HBM4 베이스 다이에 TSMC의 12나노 공정을 활용하며 안정적 수율 확보에 집중한다. 삼성전자의 HBM4는 11.7Gbps를 달성한 반면, SK하이닉스는 10~11Gbps를 목표로 설계 중이며, 수율 면에서 삼성전자가 65%, SK하이닉스가 80% 이상을 기록하는 것으로 알려져, 수율 확보가 핵심 경쟁 요소로 부상하고 있다. 또한, 삼성전자는 GPU 위에 HBM을 적층하는 zHBM 기술을 공개하며 데이터 전송 속도 4배 향상, 전력 소모 1/4 감소를 목표로 하는 등 차세대 기술 개발에도 박차를 가하고 있다.\n\nHBM 시장은 단순 속도 경쟁을 넘어 고객별 요구사항을 반영하는 맞춤형(Custom) HBM으로 패러다임이 전환되고 있으며, 베이스 다이 설계와 공정 기술의 중요성을 극대화하고 있다. 향후 삼성전자와 SK하이닉스 각 사의 베이스 다이 공정 선택에 따른 수율 및 원가 경쟁력 확보 여부, 그리고 zHBM과 같은 혁신적인 차세대 아키텍처의 상용화가 글로벌 HBM 시장의 주도권을 가르는 핵심 관전 포인트가 될 것이다.",
+  "failure_reason": null,
+  "generated_at": "2026-04-14T21:57:41.611496Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}
