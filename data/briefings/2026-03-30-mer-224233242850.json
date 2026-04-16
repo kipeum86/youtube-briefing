@@ -1,0 +1,19 @@
+{
+  "video_id": "224233242850",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "미장은 언제부터 오를수 있을까?",
+  "published_at": "2026-03-29T15:10:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224233242850",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjAzMjlfMjcz/MDAxNzc0NzU5MjE1MDMw.UXxGLF1gsLQ53DDek6x6V9EEhkuR_c1SFAwors_j704g.v9mbgwbEvsxwT0UMcPYRFQei6EMcQmkJGUpFvfxg5QQg.JPEG/acxixenz.jpg?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "ok",
+  "summary": "**미국 증시 유동성 위기와 전망**\n\n미국 증시를 지탱하던 유동성의 핵심 동력이 빠르게 소진되면서 위험자산의 변동성이 확대되고 있다. 연준의 양적 긴축(QT) 기조와 재무부의 자금 흡수가 맞물려 시장의 유동성 흐름이 불안정해진 가운데, 전통적인 유동성 지표들이 임계점에 도달했다. 이는 증시 상승 동력이 약화되었음을 시사하며, 특정 변곡점을 기점으로 유동성 흐름에 변화가 예상된다. 그러나 그 이후에도 시장은 다양한 거시경제 및 정치적 변수에 직면할 것이다.\n\n미국 증시 유동성의 3대 축인 역레포(RRP), 재무부 일반계정(TGA), 지급준비금(Reserve Balances)은 최근 유동성 축소 기조를 명확히 보여줬다. RRP 잔고는 2023년 2조 5천억 달러에서 2025년 9월 480억 달러, 현재는 10억 달러 미만인 9억 9천2백만 달러로 급감하며 사실상 고갈 상태에 이르렀다. TGA는 2025년 7월 3천억 달러에서 9월 8,048억 달러로 급증했으며, 2026년 3월 25일 기준 8,740억 달러, 4월 말에는 1조 250억 달러까지 늘어날 것으로 예상되며 시장 유동성을 지속적으로 흡수하고 있다. 지급준비금은 팬데믹 시기 4.2조 달러까지 늘었으나 양적 긴축으로 3조 달러 초반까지 감소했고, 2026년 3월 기준 2.99조 달러로 3조 달러를 간신히 방어하는 수준이다. 연준은 2025년 12월부터 Reserve Management Purchases Operations(RMP)를 시작하여 매달 400억 달러 규모의 단기 국채를 매입하며 지급준비금 급락을 방어하고 있으나, 이는 재무부의 월 900억 달러 단기 국채 발행량의 절반에 못 미치는 수준이다. 이러한 유동성 감소는 2025년 9월 29일 글 작성 이후 나스닥이 한 달 뒤인 10월 29일에, S&P 500이 2026년 1월 28일에 각각 피크를 기록한 후 하락 추세로 전환된 배경으로 작용했다.\n\n현재 미국 증시는 유동성 고갈로 인한 \"보릿고개\" 상황에 직면해 있으며, 이러한 유동성 압박은 4월 15일 미국 개인소득세 납부 마감 이후 TGA 잔고가 감소하면서 완화될 것으로 전망된다. 그러나 유동성 환경이 개선된다고 해서 즉시 시장이 회복되는 것은 아니다.",
+  "failure_reason": null,
+  "generated_at": "2026-04-16T21:42:02.178953Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}
