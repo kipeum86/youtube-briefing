@@ -1,0 +1,19 @@
+{
+  "video_id": "224259581475",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "스킨부스터 미용 시장의 돌연변이, ECM의 정체는?",
+  "published_at": "2026-04-21T02:00:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224259581475",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA0MjFfMTM4/MDAxNzc2NzI3Njc5ODg2.7FSeKmzRd2waAJ5jiR6q63CTfUj_m2D_OWYIPqh3nkEg.3s-pWtRRAHG2rMUARc9HxN5rtQq_GafiPjqeuYL-EdQg.JPEG/1516092.jpg?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "ok",
+  "summary": "**ECM 스킨부스터 시장의 논란**\n\n스킨부스터는 피부 진피층에 유효성분을 직접 주입해 피부 상태를 개선하는 시술이다. 기존 제품들이 외부 물질을 채워 넣는 방식과 달리, ECM(세포외기질) 스킨부스터는 피부 구조 자체를 복원하는 개념으로 미용 시장의 돌연변이로 부상했다. 인체 기증자의 사체 조직을 사용함에도 임상 시험 없이 유통되어 안전성 및 윤리적 논란을 야기하는 점이 문제다.\n\nECM은 콜라겐, 엘라스틴 등으로 구성된 피부 바탕 물질이다. 세브란스병원 연구에서 ECM 주입 후 피부 탄력 개선, 진피 구조 복원이 확인됐고, 1회 시술로 피부결 개선, 3회 시술로 장기 탄력 유지가 보고됐다. 현재 4개 기업이 1회 60~90만원에 판매 중이다. 그러나 ECM은 의료기기가 아닌 '인체조직'으로 분류되어 임상 시험이 필수가 아니다. 사망자 피부를 갈아 만든 물질이므로, 기증자의 치료·연구 목적 의도와 고가 미용 시술 활용 간 윤리적 괴리가 발생한다. 미국 FDA는 인체 조직 사용 시 면역 반응 최소화 처리만 허용하지만, 한국은 사체 피부를 미용 목적으로 활발히 사용하며 규제 미비 지적을 받는다.\n\nECM 스킨부스터는 잠재적 효과에도 불구, 충분한 안전성 검증 없이 인체 기증 조직을 미용에 사용하는 윤리적 딜레마를 안고 있다. 국가별 규제 허점을 악용, 소비자 안전과 기증 윤리 문제가 복합적으로 얽혀있어, 명확한 규제 기준과 윤리적 가이드라인 마련이 시급하다.",
+  "failure_reason": null,
+  "generated_at": "2026-04-21T21:36:48.564792Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

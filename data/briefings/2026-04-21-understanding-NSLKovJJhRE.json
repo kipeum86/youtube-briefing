@@ -1,0 +1,19 @@
+{
+  "video_id": "NSLKovJJhRE",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "이란은 목숨 걸고 협상장 나옵니다, 왜? (서강대학교 유로메나 연구소 박현도 교수, 성일광 교수)",
+  "published_at": "2026-04-21T13:04:28Z",
+  "video_url": "https://www.youtube.com/watch?v=NSLKovJJhRE",
+  "thumbnail_url": "https://i.ytimg.com/vi/NSLKovJJhRE/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-21T21:35:09.674390Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

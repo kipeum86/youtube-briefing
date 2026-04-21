@@ -1,0 +1,19 @@
+{
+  "video_id": "bSHLtglLbJA",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "(1부) 챗GPT vs 제미나이 vs 클로드, AI 승자 답 나왔습니다 (서울시립대학교 김덕진 겸임교수)",
+  "published_at": "2026-04-21T07:55:00Z",
+  "video_url": "https://www.youtube.com/watch?v=bSHLtglLbJA",
+  "thumbnail_url": "https://i.ytimg.com/vi/bSHLtglLbJA/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-21T21:35:10.281807Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

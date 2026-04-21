@@ -1,0 +1,19 @@
+{
+  "video_id": "WuKhGefGpSA",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "둔촌주공보다 독하다 진흙탕 성남 재개발 (언더스탠딩 장순원 기자)",
+  "published_at": "2026-04-20T11:25:00Z",
+  "video_url": "https://www.youtube.com/watch?v=WuKhGefGpSA",
+  "thumbnail_url": "https://i.ytimg.com/vi/WuKhGefGpSA/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-21T21:35:11.563153Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

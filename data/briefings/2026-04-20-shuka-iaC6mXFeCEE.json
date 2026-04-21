@@ -1,0 +1,19 @@
+{
+  "video_id": "iaC6mXFeCEE",
+  "channel_slug": "shuka",
+  "channel_name": "슈카월드",
+  "title": "SK하이닉스 성과급, 얼마나 나올까?",
+  "published_at": "2026-04-20T10:29:25Z",
+  "video_url": "https://www.youtube.com/watch?v=iaC6mXFeCEE",
+  "thumbnail_url": "https://i.ytimg.com/vi/iaC6mXFeCEE/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-21T21:34:55.284293Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

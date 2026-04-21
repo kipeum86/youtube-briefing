@@ -1,0 +1,19 @@
+{
+  "video_id": "jfSjad5T3t0",
+  "channel_slug": "globelab",
+  "channel_name": "최준영 박사의 지구본 연구소",
+  "title": "미국의 이란 화물선 나포, 이란에게 남은 카드는? [지구본 뉴스룸]",
+  "published_at": "2026-04-20T07:58:20Z",
+  "video_url": "https://www.youtube.com/watch?v=jfSjad5T3t0",
+  "thumbnail_url": "https://i.ytimg.com/vi/jfSjad5T3t0/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-21T21:35:20.096406Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

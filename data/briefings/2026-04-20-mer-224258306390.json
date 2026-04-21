@@ -1,0 +1,19 @@
+{
+  "video_id": "224258306390",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "미국, 이란 민간선박 5인치 함포로 선체 파괴후 나포(feat 왜?)",
+  "published_at": "2026-04-19T23:25:57Z",
+  "video_url": "https://blog.naver.com/ranto28/224258306390",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA0MjBfMjA4/MDAxNzc2NjQxNTE5MTIw.OnZZ1lkVUJHD6mgFZmrADqUnyIngf6paiwtnG4antGQg.kv7UeFu9BZ1CoKOdGxIDwxqGvuAEZAcoUaD-t8jfHq8g.PNG/image.png?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "ok",
+  "summary": "**미, 이란 선박 함포 나포**\n\n미국은 오만만에서 이란 국적 컨테이너선 투스카호(TOUSKA)를 함포 공격 후 나포하는 전례 없는 조치를 단행했다. 이는 이란의 신형 고체연료 탄도미사일 개발에 쓰일 핵심 물질 운송을 차단하고, 이란의 대량살상무기 프로그램에 강력한 압박을 가하려는 의도로 풀이된다. 미국은 투스카호가 미 재무부 제재 대상인 이란 국영해운사 IRISL 소속의 '블랙리스트 1순위' 선박임을 강조하며 이번 조치의 정당성을 주장한다.\n\n미 해군 유도미사일 구축함 스프루언스함(USS SPRUANCE)은 경고를 무시한 투스카호의 기관실에 5인치 함포를 발사해 구멍을 낸 뒤 나포했다. 길이 약 275m, 6만 톤급 컨테이너선인 투스카호는 중국 가오란항을 출발해 이란으로 향하던 중이었다. 이 선박은 이란 신형 고체연료 탄도미사일 연료의 약 70%를 구성하는 과염소산암모늄으로 정제 가능한 과염소산나트륨을 선적한 것으로 알려졌다. 투스카호는 2020년 6월 미국 재무부가 이란 대량살상무기 재료 운송 수단으로 지정한 IRISL 소속 중 가장 활발히 활동하던 제재 대상 선박이었다. 이는 미국이 이란 선박을 직접 공격하고 선체를 파괴한 첫 사례로, 기존 위협 수준을 넘어서는 직접적인 군사 행동이다.\n\n이번 미국의 직접적인 선박 나포는 향후 이란과의 협상에서 주도권 확보를 위한 압박 전략으로 해석된다. 이란 군 사령부는 이를 \"휴전 협정 위반 및 해상 강도 행위\"로 규정하며 즉각적인 대응과 보복을 경고, 양국 간 긴장감이 고조되고 있다. 다음 관전 포인트는 이란의 맞대응 방식과 중동 지역 군사적 긴장 상태에 미칠 영향이다.",
+  "failure_reason": null,
+  "generated_at": "2026-04-21T21:37:37.287035Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

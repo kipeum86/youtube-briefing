@@ -1,0 +1,19 @@
+{
+  "video_id": "5w5ZhjEDNm4",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "러시아도 이란 안 믿습니다 (알파고 시나씨)",
+  "published_at": "2026-04-18T14:15:00Z",
+  "video_url": "https://www.youtube.com/watch?v=5w5ZhjEDNm4",
+  "thumbnail_url": "https://i.ytimg.com/vi/5w5ZhjEDNm4/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-21T21:35:13.285998Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

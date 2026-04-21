@@ -1,0 +1,19 @@
+{
+  "video_id": "cmpFjEo9e1M",
+  "channel_slug": "jisik-inside",
+  "channel_name": "지식 인사이드",
+  "title": "전세계 빅테크 기업들이 AI 경쟁에서 한국을 필요로 하는 이유ㅣ지식인초대석 (김정호 박사 풀버전)",
+  "published_at": "2026-04-21T11:01:06Z",
+  "video_url": "https://www.youtube.com/watch?v=cmpFjEo9e1M",
+  "thumbnail_url": "https://i.ytimg.com/vi/cmpFjEo9e1M/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-21T21:35:16.262017Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}
