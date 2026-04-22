@@ -1,0 +1,19 @@
+{
+  "video_id": "224260853328",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "주절주절...주린이 딸...비트코인 썰..",
+  "published_at": "2026-03-25T15:00:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224260853328",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA0MjJfMTM4/MDAxNzc2ODE1NjY3MDIz.n1QBpjSYQEGMvx9GezYW0sw4oLJozJPZrv_84CpPHdEg.uAerl0D_pL6ALxtdghQ2RJdt3tsnnbGoZW_SW8xiZ-Yg.JPEG/ge0y00vz.jpg?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "ok",
+  "summary": "**주린이 딸의 비트코인 투자**\n\n글쓴이의 딸은 주식 초보임에도 불구하고 높은 수익률을 기록한 조선주를 정리하여 비트코인에 투자했으며, 이는 단기간에 추가적인 수익으로 이어졌다. 이는 과거 비트코인에 대한 초기 기회를 놓쳤던 글쓴이 세대의 경험과 극명하게 대비된다. 이 에피소드는 전통적인 투자 방식과 새로운 세대의 과감하고 즉각적인 자산 배분 전략 간의 차이를 명확히 드러낸다.\n\n딸은 한국카본 주식을 11,238원에 매수하여 49,650원에 절반을 매도함으로써 원금을 성공적으로 회수했다. 그녀는 이 매도 대금을 비트코인 6만 6천 달러대에 투자했고, 한 달 만에 비트코인 가격은 7만 5천 달러를 넘어섰다. 한편, 글쓴이는 2013년 1월경 회사 교육을 통해 비트코인 3개를 받을 기회가 있었으나, 당시 개당 약 5달러였던 비트코인을 바쁘다는 이유로 지갑을 만들지 않아 놓쳤다. 함께 교육을 받은 동료는 3개의 비트코인을 받아 개당 400달러(약 50만 원)에 팔아 휴가비로 사용했다고 전해진다.\n\n이 일화는 신흥 디지털 자산 시장의 예측 불가능한 성장성과 젊은 세대의 과감한 투자 결단이 가져올 수 있는 단기 고수익 가능성을 동시에 보여준다. 이는 새로운 기술과 자산에 대한 기회 포착 여부가 장기적인 자산 증식에 미치는 영향이 크다는 점을 시사한다. 전통적인 투자 관점에 갇히지 않고 끊임없이 변화하는 시장을 이해하려는 노력이 중요함을 강조하며, 다음 관전 포인트는 비트코인 가격의 지속적인 상승 여부와 디지털 자산 시장의 제도화 및 대중화 속도에 있다.",
+  "failure_reason": null,
+  "generated_at": "2026-04-22T14:46:43.178515Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}
