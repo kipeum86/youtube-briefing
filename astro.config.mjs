@@ -3,7 +3,7 @@ import { defineConfig } from "astro/config";
 
 // https://astro.build/config
 export default defineConfig({
-  site: "https://kpsfamily.github.io",
+  site: "https://kipeum86.github.io",
   base: "/youtube-briefing",
   trailingSlash: "ignore",
   build: {

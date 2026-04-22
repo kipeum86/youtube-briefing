@@ -1,0 +1,35 @@
+---
+/**
+ * HubChip — fixed-position link back to briefing-hub.
+ * Rendered top-right on every page via Base layout.
+ *
+ * Hub URL can be overridden via PUBLIC_HUB_URL env var at build time
+ * (lets us migrate to a custom domain later without code changes).
+ */
+const hubUrl =
+  import.meta.env.PUBLIC_HUB_URL ?? "https://kipeum86.github.io/briefing-hub/";
+---
+<a class="hub-chip" href={hubUrl} aria-label="Briefing Hub로 이동">
+  ← BRIEFING HUB
+</a>
+
+<style>
+  .hub-chip {
+    position: fixed;
+    top: 16px;
+    right: 16px;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 11px;
+    letter-spacing: 1.5px;
+    text-decoration: none;
+    background: #2d4a3e;
+    color: #f4ede0;
+    border: 1px solid #1d2f28;
+    z-index: 100;
+    transition: background 0.15s;
+  }
+  .hub-chip:hover {
+    background: #1d2f28;
+  }
+</style>

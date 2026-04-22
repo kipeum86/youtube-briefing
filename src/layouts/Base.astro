@@ -19,6 +19,7 @@
  *   - issueDate: the ISO date for the rail (e.g. "2026.04.10")
  */
 import "../styles/global.css";
+import HubChip from "../components/HubChip.astro";
 
 interface Props {
   title: string;
@@ -68,6 +69,7 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
   </head>
   <body>
     <a class="skip-link" href="#main">본문으로 건너뛰기</a>
+    <HubChip />
 
     <div class="shell">
       <aside class="rail" aria-hidden="true">
