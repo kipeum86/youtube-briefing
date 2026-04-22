@@ -209,15 +209,25 @@ def process_video(
         write_briefing(briefing, briefings_dir)
         return briefing
 
+    effective_meta = meta
+    if transcript_result.published_at is not None and transcript_result.published_at != meta.published_at:
+        logger.info(
+            "[%s] overriding published_at from source page: %s -> %s",
+            meta.channel_slug,
+            meta.published_at.isoformat(),
+            transcript_result.published_at.isoformat(),
+        )
+        effective_meta = meta.model_copy(update={"published_at": transcript_result.published_at})
+
     try:
-        result = summarizer.summarize(transcript_result.text, meta)
+        result = summarizer.summarize(transcript_result.text, effective_meta)
     except TransientSummarizerError as e:
         logger.warning("[%s] transient summarizer failure, skipping: %s", meta.channel_slug, e)
         return None
     except PermanentSummarizerError as e:
         logger.info("[%s] permanent summarizer failure: %s", meta.channel_slug, e)
         briefing = build_briefing_from_permanent_failure(
-            meta=meta,
+            meta=effective_meta,
             failure_code=e.failure_code,
             provider=summarizer.provider,
             model=summarizer.model,
@@ -227,7 +237,7 @@ def process_video(
         return briefing
 
     briefing = build_briefing_from_success(
-        meta=meta,
+        meta=effective_meta,
         summary=result.summary,
         provider=result.provider,
         model=result.model,

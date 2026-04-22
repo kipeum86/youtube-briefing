@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from pipeline.fetchers import naver_blog
 from pipeline.fetchers.transcript_extractor import PermanentTranscriptFailure
 from pipeline.models import DiscoverySource, SourceType
@@ -50,6 +52,7 @@ BLOG_HTML = """
     <title>최신 포스트 : 네이버 블로그</title>
   </head>
   <body>
+    <p class="blog_date">2026. 4. 13. 07:05</p>
     <div class="se-main-container">
       <div>
         <p>첫 문장입니다. 둘째 문장입니다. 셋째 문장입니다. 넷째 문장입니다.</p>
@@ -107,6 +110,7 @@ class TestExtractBlogPostText:
         assert result.source == "naver_blog_html"
         assert "첫 문장입니다." in result.text
         assert "열여섯째 문장입니다." in result.text
+        assert result.published_at == datetime(2026, 4, 12, 22, 5, tzinfo=timezone.utc)
 
     def test_raises_permanent_failure_when_body_missing(self, monkeypatch):
         monkeypatch.setattr(
@@ -124,3 +128,34 @@ class TestExtractBlogPostText:
             assert exc.failure_code == "empty_transcript"
         else:
             raise AssertionError("PermanentTranscriptFailure was not raised")
+
+    def test_extracts_published_at_from_json_ld(self, monkeypatch):
+        html = """
+        <html>
+          <head>
+            <script type="application/ld+json">
+              {"datePublished":"2026-04-13T07:05:47+09:00"}
+            </script>
+          </head>
+          <body>
+            <div class="se-main-container">
+              <p>본문입니다. 본문입니다. 본문입니다. 본문입니다. 본문입니다.</p>
+              <p>본문입니다. 본문입니다. 본문입니다. 본문입니다. 본문입니다.</p>
+              <p>본문입니다. 본문입니다. 본문입니다. 본문입니다. 본문입니다.</p>
+              <p>본문입니다. 본문입니다. 본문입니다. 본문입니다. 본문입니다.</p>
+            </div>
+          </body>
+        </html>
+        """
+        monkeypatch.setattr(
+            naver_blog.urllib.request,
+            "urlopen",
+            lambda request, timeout=20: _FakeResponse(html),
+        )
+
+        result = naver_blog.extract_blog_post_text(
+            "https://blog.naver.com/ranto28/224250228854",
+            item_id="224250228854",
+        )
+
+        assert result.published_at == datetime(2026, 4, 12, 22, 5, 47, tzinfo=timezone.utc)

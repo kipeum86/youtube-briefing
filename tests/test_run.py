@@ -249,7 +249,7 @@ class TestRunOrchestrator:
             channel_slug="mer",
             channel_name="메르의 블로그",
             title="트럼프, 호르무즈해협 완전 봉쇄 선언",
-            published_at=datetime(2026, 4, 13, tzinfo=timezone.utc),
+            published_at=datetime(2026, 4, 15, tzinfo=timezone.utc),
             discovery_source=DiscoverySource.NAVER_BLOG_RSS,
             source_type="naver_blog",
             source_url="https://blog.naver.com/ranto28/224250228854",
@@ -262,16 +262,22 @@ class TestRunOrchestrator:
         monkeypatch.setattr(
             run,
             "extract_blog_post_text",
-            lambda url, item_id: TranscriptResult(text="본문 " * 200, source="naver_blog_html"),
+            lambda url, item_id: TranscriptResult(
+                text="본문 " * 200,
+                source="naver_blog_html",
+                published_at=datetime(2026, 4, 12, 22, 5, 47, tzinfo=timezone.utc),
+            ),
         )
 
         exit_code = run.run(config_path=config_path, briefings_dir=briefings_dir)
         assert exit_code == 0
         files = list(briefings_dir.glob("*.json"))
         assert len(files) == 1
+        assert files[0].name == "2026-04-13-mer-224250228854.json"
         loaded = files[0].read_text(encoding="utf-8")
         assert '"source_type": "naver_blog"' in loaded
         assert '"video_url": "https://blog.naver.com/ranto28/224250228854"' in loaded
+        assert '"published_at": "2026-04-12T22:05:47Z"' in loaded
 
     def test_all_channels_fail_returns_exit_2(self, tmp_path: Path, fake_summarizer, monkeypatch):
         config_path = _write_config(

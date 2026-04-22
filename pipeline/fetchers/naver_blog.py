@@ -8,15 +8,17 @@ parsing from the desktop page.
 
 from __future__ import annotations
 
+import json
 import logging
 import re
 import urllib.error
 import urllib.parse
 import urllib.request
 import xml.etree.ElementTree as ET
-from datetime import timezone
+from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
 from html import unescape
+from zoneinfo import ZoneInfo
 
 from pipeline.fetchers.discovery import DiscoveryFailure
 from pipeline.fetchers.transcript_extractor import (
@@ -58,6 +60,38 @@ WHITESPACE_RE = re.compile(r"[ \t]+")
 BLANK_LINES_RE = re.compile(r"\n{3,}")
 SCRIPT_STYLE_RE = re.compile(r"<(script|style|noscript)[^>]*>.*?</\1>", re.DOTALL | re.IGNORECASE)
 TITLE_RE = re.compile(r"<title[^>]*>(.*?)</title>", re.DOTALL | re.IGNORECASE)
+JSON_LD_RE = re.compile(
+    r'<script[^>]+type=["\']application/ld\+json["\'][^>]*>(.*?)</script>',
+    re.DOTALL | re.IGNORECASE,
+)
+META_CONTENT_RE = re.compile(
+    r"<meta[^>]+(?:property|name|itemprop)=[\"'](?P<key>[^\"']+)[\"'][^>]+content=[\"'](?P<value>[^\"']+)[\"']",
+    re.IGNORECASE,
+)
+NAVER_DATE_RE = re.compile(
+    r'(?:class=["\'][^"\']*\b(?:se_publishDate|blog_date)\b[^"\']*["\']|id=["\']_postAddDate["\'])[^>]*>(.*?)<',
+    re.DOTALL | re.IGNORECASE,
+)
+KEYED_TIMESTAMP_RE = re.compile(
+    r"(datePublished|published|regDate|addDate|writeDate|createdAt|created|updatedAt|modify|modified)"
+    r"[^0-9]{0,30}(20\d{10}|20\d{12})",
+    re.IGNORECASE,
+)
+ISO_WITH_TZ_RE = re.compile(
+    r"\b(20\d{2}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?(?:\.\d+)?(?:Z|[+\-]\d{2}:?\d{2}))\b"
+)
+ISO_NO_TZ_RE = re.compile(r"\b(20\d{2}-\d{2}-\d{2}[ T]\d{2}:\d{2}(?::\d{2})?)\b")
+DOT_DATE_RE = re.compile(
+    r"(20\d{2})\.\s*(\d{1,2})\.\s*(\d{1,2})\.?"
+    r"(?:\s*(오전|오후)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?)?"
+)
+KOREAN_DATE_RE = re.compile(
+    r"(20\d{2})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일"
+    r"(?:\s*(오전|오후)?\s*(\d{1,2}):(\d{2})(?::(\d{2}))?)?"
+)
+TIMESTAMP_14_RE = re.compile(r"\b(20\d{12})\b")
+TIMESTAMP_12_RE = re.compile(r"\b(20\d{10})\b")
+KST = ZoneInfo("Asia/Seoul")
 
 
 def discover_new_blog_posts(
@@ -145,6 +179,7 @@ def extract_blog_post_text(post_url: str, item_id: str) -> TranscriptResult:
 
     content_area = _extract_content_area(html)
     content = _extract_text(content_area)
+    published_at = _extract_published_at(html)
 
     if len(content) < 100:
         title = _extract_title(html)
@@ -155,7 +190,7 @@ def extract_blog_post_text(post_url: str, item_id: str) -> TranscriptResult:
             failure_code="empty_transcript",
         )
 
-    return TranscriptResult(text=content, source="naver_blog_html")
+    return TranscriptResult(text=content, source="naver_blog_html", published_at=published_at)
 
 
 def _parse_rss_item(
@@ -221,6 +256,156 @@ def _extract_title(html: str) -> str:
         return ""
     title = unescape(TAG_RE.sub("", match.group(1))).strip()
     return re.sub(r"\s*[-:|]?\s*네이버\s*블로그$", "", title).strip()
+
+
+def _extract_published_at(html: str) -> datetime | None:
+    """Extract the post's actual published_at from the page HTML when possible."""
+    decoded = unescape(html)
+    head_window = decoded[:20000]
+
+    for script_match in JSON_LD_RE.finditer(decoded):
+        json_text = script_match.group(1).strip()
+        if not json_text:
+            continue
+        try:
+            payload = json.loads(json_text)
+        except json.JSONDecodeError:
+            continue
+        found = _find_date_in_json(payload)
+        parsed = _parse_blog_datetime(found)
+        if parsed is not None:
+            return parsed
+
+    meta_candidates = []
+    for meta_match in META_CONTENT_RE.finditer(head_window):
+        key = meta_match.group("key").strip().lower()
+        if key in {
+            "article:published_time",
+            "article:modified_time",
+            "og:published_time",
+            "og:updated_time",
+            "date",
+            "publish_date",
+            "datepublished",
+            "datecreated",
+        }:
+            meta_candidates.append(meta_match.group("value"))
+
+    for candidate in meta_candidates:
+        parsed = _parse_blog_datetime(candidate)
+        if parsed is not None:
+            return parsed
+
+    naver_date_match = NAVER_DATE_RE.search(decoded)
+    if naver_date_match:
+        parsed = _parse_blog_datetime(naver_date_match.group(1))
+        if parsed is not None:
+            return parsed
+
+    keyed_match = KEYED_TIMESTAMP_RE.search(head_window)
+    if keyed_match:
+        parsed = _parse_blog_datetime(keyed_match.group(2))
+        if parsed is not None:
+            return parsed
+
+    for re_obj in (ISO_WITH_TZ_RE, ISO_NO_TZ_RE, DOT_DATE_RE, KOREAN_DATE_RE, TIMESTAMP_14_RE, TIMESTAMP_12_RE):
+        match = re_obj.search(head_window)
+        if not match:
+            continue
+        parsed = _parse_blog_datetime(match.group(0))
+        if parsed is not None:
+            return parsed
+
+    return None
+
+
+def _find_date_in_json(payload: object) -> str | None:
+    if isinstance(payload, list):
+        for item in payload:
+            found = _find_date_in_json(item)
+            if found:
+                return found
+        return None
+
+    if not isinstance(payload, dict):
+        return None
+
+    for key in ("datePublished", "dateCreated", "uploadDate", "dateModified"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()
+
+    graph = payload.get("@graph")
+    if graph is not None:
+        found = _find_date_in_json(graph)
+        if found:
+            return found
+
+    for value in payload.values():
+        if isinstance(value, (list, dict)):
+            found = _find_date_in_json(value)
+            if found:
+                return found
+
+    return None
+
+
+def _parse_blog_datetime(raw: str | None) -> datetime | None:
+    if raw is None:
+        return None
+
+    cleaned = WHITESPACE_RE.sub(" ", TAG_RE.sub("", unescape(raw))).strip()
+    if not cleaned:
+        return None
+
+    for full_match, fmt in (
+        (TIMESTAMP_14_RE.fullmatch(cleaned), "%Y%m%d%H%M%S"),
+        (TIMESTAMP_12_RE.fullmatch(cleaned), "%Y%m%d%H%M"),
+    ):
+        if full_match:
+            try:
+                dt = datetime.strptime(full_match.group(1), fmt)
+            except ValueError:
+                return None
+            return dt.replace(tzinfo=KST).astimezone(timezone.utc)
+
+    if ISO_WITH_TZ_RE.fullmatch(cleaned):
+        try:
+            return datetime.fromisoformat(cleaned.replace("Z", "+00:00")).astimezone(timezone.utc)
+        except ValueError:
+            return None
+
+    if ISO_NO_TZ_RE.fullmatch(cleaned):
+        try:
+            dt = datetime.fromisoformat(cleaned.replace(" ", "T"))
+        except ValueError:
+            return None
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=KST)
+        return dt.astimezone(timezone.utc)
+
+    for re_obj in (DOT_DATE_RE, KOREAN_DATE_RE):
+        match = re_obj.fullmatch(cleaned)
+        if not match:
+            continue
+        year = int(match.group(1))
+        month = int(match.group(2))
+        day = int(match.group(3))
+        meridiem = match.group(4)
+        hour = int(match.group(5) or 0)
+        minute = int(match.group(6) or 0)
+        second = int(match.group(7) or 0)
+        if meridiem == "오후" and hour < 12:
+            hour += 12
+        if meridiem == "오전" and hour == 12:
+            hour = 0
+        try:
+            dt = datetime(year, month, day, hour, minute, second, tzinfo=KST)
+        except ValueError:
+            return None
+        return dt.astimezone(timezone.utc)
+
+    return None
 
 
 def _extract_content_area(html: str) -> str:

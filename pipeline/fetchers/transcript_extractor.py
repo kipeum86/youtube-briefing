@@ -31,6 +31,7 @@ import re
 import subprocess
 import tempfile
 from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Literal
 
@@ -76,6 +77,7 @@ class PermanentTranscriptFailure(TranscriptFailure):
 class TranscriptResult:
     text: str
     source: Source
+    published_at: datetime | None = None
 
 
 def extract_transcript(video_id: str, cache_dir: Path | str | None = None) -> TranscriptResult:
