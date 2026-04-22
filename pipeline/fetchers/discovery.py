@@ -432,7 +432,13 @@ def _parse_ytdlp_output(
     upload_date is often "NA" in --flat-playlist mode. release_timestamp
     and timestamp are unix epochs that almost always have a value, so we
     fall through to those when upload_date is missing.
+
+    When all three fields are NA (observed on parkjonghoon, globelab,
+    jisik-inside), we do a per-video non-flat yt-dlp probe for the survivors
+    before yielding — non-flat mode reliably populates upload_date. This
+    keeps published_at accurate instead of collapsing to `now()`.
     """
+    rows: list[tuple[str, str, int | None, datetime | None]] = []
     for line in stdout.strip().split("\n"):
         line = line.strip()
         if not line:
@@ -458,6 +464,33 @@ def _parse_ytdlp_output(
         except ValueError:
             duration_seconds = None
 
+        rows.append((video_id, title, duration_seconds, published_at))
+
+    missing_ids = [vid for vid, _, _, pub in rows if pub is None]
+    probed: dict[str, datetime] = {}
+    if missing_ids:
+        logger.info(
+            "[%s] flat-playlist returned all-NA dates for %d video(s) — probing per-video",
+            channel_slug,
+            len(missing_ids),
+        )
+        try:
+            probed = _probe_publish_dates(missing_ids)
+        except Exception as e:  # noqa: BLE001 — fail open to now() rather than dropping videos
+            logger.warning("[%s] publish date probe failed: %s", channel_slug, e)
+
+    for video_id, title, duration_seconds, published_at in rows:
+        if published_at is None:
+            resolved = probed.get(video_id)
+            if resolved is None:
+                logger.warning(
+                    "[%s] could not resolve published_at for %s — falling back to now()",
+                    channel_slug,
+                    video_id,
+                )
+                resolved = datetime.now(timezone.utc)
+            published_at = resolved
+
         yield VideoMeta(
             video_id=video_id,
             channel_id=channel_id,
@@ -475,7 +508,7 @@ def _parse_ytdlp_publish_date(
     release_ts_str: str,
     timestamp_str: str,
     video_id: str,
-) -> datetime:
+) -> datetime | None:
     """Resolve a publish date from yt-dlp's three available sources.
 
     yt-dlp's `--flat-playlist` mode populates these fields inconsistently:
@@ -483,10 +516,10 @@ def _parse_ytdlp_publish_date(
       - `release_timestamp` (unix epoch) is populated for scheduled/premiere uploads.
       - `timestamp` (unix epoch) is populated for most regular uploads.
 
-    We try them in that order, falling back to `now()` only if all three fail.
-    Without this chain, every catchup video would claim `now()` as its
-    published_at, which breaks the filename date, the KST "today" grouping,
-    and the newest-first sort.
+    Returns None when all three fields are missing/unparseable — the caller
+    is expected to recover via a non-flat per-video probe rather than
+    collapsing to now() here (which produced same-second timestamps across
+    unrelated videos and broke filename dates + newest-first sort).
     """
     # Tier 1: upload_date as YYYYMMDD
     if upload_date_str and upload_date_str != "NA":
@@ -495,7 +528,7 @@ def _parse_ytdlp_publish_date(
         except ValueError:
             logger.debug("[%s] upload_date %r not YYYYMMDD, trying timestamps", video_id, upload_date_str)
 
-    # Tier 2: release_timestamp (unix epoch)
+    # Tier 2: release_timestamp / timestamp (unix epoch)
     for label, ts_str in (("release_timestamp", release_ts_str), ("timestamp", timestamp_str)):
         if not ts_str or ts_str == "NA":
             continue
@@ -504,11 +537,60 @@ def _parse_ytdlp_publish_date(
         except (ValueError, OSError):
             logger.debug("[%s] %s %r unparseable", video_id, label, ts_str)
 
-    logger.warning(
-        "[%s] yt-dlp published_at all-NA (upload_date=%r, release_ts=%r, timestamp=%r) — using now()",
-        video_id,
-        upload_date_str,
-        release_ts_str,
-        timestamp_str,
-    )
-    return datetime.now(timezone.utc)
+    return None
+
+
+def _probe_publish_dates(video_ids: list[str]) -> dict[str, datetime]:
+    """Fetch accurate publish dates for individual videos via yt-dlp.
+
+    --flat-playlist mode drops metadata for some channels (parkjonghoon,
+    globelab, jisik-inside observed in prod). A non-flat fetch reliably
+    returns `upload_date`, `release_timestamp`, and `timestamp`.
+
+    Returns a dict of video_id → datetime. Videos yt-dlp couldn't resolve
+    are omitted; the caller decides how to handle misses.
+    """
+    if not video_ids:
+        return {}
+
+    urls = [f"https://www.youtube.com/watch?v={vid}" for vid in video_ids]
+    cmd = [
+        "yt-dlp",
+        "--skip-download",
+        "--no-warnings",
+        "--ignore-errors",
+        "--extractor-args", "youtube:lang=ko",
+        "--print", "%(id)s|%(upload_date)s|%(release_timestamp)s|%(timestamp)s",
+        *urls,
+    ]
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+    except FileNotFoundError as e:
+        raise RuntimeError("yt-dlp binary not found — required for publish date probe") from e
+    except subprocess.TimeoutExpired as e:
+        raise RuntimeError(f"yt-dlp publish date probe timeout ({180}s)") from e
+
+    if result.returncode != 0 and not result.stdout.strip():
+        raise RuntimeError(
+            f"yt-dlp publish date probe exit {result.returncode}: {result.stderr[:300]}"
+        )
+
+    dates: dict[str, datetime] = {}
+    for line in result.stdout.strip().split("\n"):
+        line = line.strip()
+        if not line or "|" not in line:
+            continue
+        parts = line.split("|", 3)
+        if len(parts) < 2:
+            continue
+        vid = parts[0].strip()
+        if not vid:
+            continue
+        upload_date_str = parts[1].strip() if len(parts) > 1 else ""
+        release_ts_str = parts[2].strip() if len(parts) > 2 else ""
+        timestamp_str = parts[3].strip() if len(parts) > 3 else ""
+        dt = _parse_ytdlp_publish_date(upload_date_str, release_ts_str, timestamp_str, vid)
+        if dt is not None:
+            dates[vid] = dt
+
+    return dates

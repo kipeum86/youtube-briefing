@@ -16,6 +16,7 @@ from pipeline.fetchers.discovery import (
     _parse_ytdlp_output,
     _parse_ytdlp_publish_date,
     _probe_durations,
+    _probe_publish_dates,
     discover_new_videos,
 )
 from pipeline.models import DiscoverySource, VideoMeta
@@ -163,6 +164,73 @@ class TestParseYtdlpOutput:
         ))
         assert videos[0].published_at.year == 2024
 
+    def test_all_na_triggers_per_video_probe(self, monkeypatch):
+        """When flat-playlist returns all-NA for dates, _parse_ytdlp_output
+        probes per-video and stamps the probed date on the VideoMeta.
+
+        Regression: parkjonghoon / globelab / jisik-inside consistently
+        returned NA for upload_date, release_timestamp, AND timestamp in
+        flat-playlist mode. The old code collapsed every such video to the
+        same `now()` timestamp, producing identical-to-the-microsecond
+        published_at values across unrelated videos."""
+        stdout = (
+            "vid00001XYZ|첫 영상|NA|1200|NA|NA\n"
+            "vid00002XYZ|둘째 영상|NA|900|NA|NA\n"
+        )
+        real = datetime(2026, 4, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+        def fake_probe(video_ids):
+            return {vid: real for vid in video_ids}
+
+        monkeypatch.setattr(discovery, "_probe_publish_dates", fake_probe)
+
+        videos = list(_parse_ytdlp_output(
+            stdout, channel_id=VALID_CHANNEL_ID, channel_slug="globelab", channel_name="지"
+        ))
+        assert len(videos) == 2
+        assert all(v.published_at == real for v in videos)
+
+    def test_probe_failure_falls_back_to_now_per_video(self, monkeypatch):
+        """If the probe itself raises, each unresolved video falls back to
+        now() so the pipeline still progresses — fail open, don't drop."""
+        stdout = "vid00001XYZ|영상|NA|1200|NA|NA\n"
+
+        def boom(video_ids):
+            raise RuntimeError("yt-dlp exploded")
+
+        monkeypatch.setattr(discovery, "_probe_publish_dates", boom)
+
+        before = datetime.now(timezone.utc)
+        videos = list(_parse_ytdlp_output(
+            stdout, channel_id=VALID_CHANNEL_ID, channel_slug="shuka", channel_name="슈"
+        ))
+        after = datetime.now(timezone.utc)
+        assert len(videos) == 1
+        assert before <= videos[0].published_at <= after
+
+    def test_probe_partial_success_other_videos_fall_back(self, monkeypatch):
+        """Probe resolves some videos but not others — only the missing ones
+        get now(), resolved ones get the probed date."""
+        stdout = (
+            "vid00001XYZ|첫|NA|1200|NA|NA\n"
+            "vid00002XYZ|둘|NA|900|NA|NA\n"
+        )
+        real = datetime(2026, 4, 15, 12, 0, 0, tzinfo=timezone.utc)
+        monkeypatch.setattr(
+            discovery, "_probe_publish_dates",
+            lambda ids: {"vid00001XYZ": real},
+        )
+
+        before = datetime.now(timezone.utc)
+        videos = list(_parse_ytdlp_output(
+            stdout, channel_id=VALID_CHANNEL_ID, channel_slug="shuka", channel_name="슈"
+        ))
+        after = datetime.now(timezone.utc)
+
+        by_id = {v.video_id: v for v in videos}
+        assert by_id["vid00001XYZ"].published_at == real
+        assert before <= by_id["vid00002XYZ"].published_at <= after
+
 
 class TestFilterShorts:
     def test_drops_videos_below_threshold(self):
@@ -257,6 +325,80 @@ class TestProbeDurations:
         assert out == {"good123": 1800}
 
 
+class TestProbePublishDates:
+    def test_empty_input_returns_empty_dict(self):
+        assert _probe_publish_dates([]) == {}
+
+    def test_parses_upload_date(self, monkeypatch):
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 0
+        fake_result.stdout = "abc123|20260408|NA|NA\ndef456|20260407|NA|NA\n"
+        fake_result.stderr = ""
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        out = _probe_publish_dates(["abc123", "def456"])
+        assert out["abc123"] == datetime(2026, 4, 8, tzinfo=timezone.utc)
+        assert out["def456"] == datetime(2026, 4, 7, tzinfo=timezone.utc)
+
+    def test_falls_through_to_release_timestamp(self, monkeypatch):
+        """Non-flat mode still leaves upload_date NA for some videos — the
+        chain to release_timestamp / timestamp must still work."""
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 0
+        # 1712534400 = 2024-04-08 UTC
+        fake_result.stdout = "abc123|NA|1712534400|NA\n"
+        fake_result.stderr = ""
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        out = _probe_publish_dates(["abc123"])
+        assert out["abc123"].year == 2024
+        assert out["abc123"].month == 4
+        assert out["abc123"].day == 8
+
+    def test_unresolvable_video_omitted_from_result(self, monkeypatch):
+        """Videos where every field is NA are omitted — the caller's
+        responsibility to decide a fallback."""
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 0
+        fake_result.stdout = "abc123|20260408|NA|NA\nbad456|NA|NA|NA\n"
+        fake_result.stderr = ""
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        out = _probe_publish_dates(["abc123", "bad456"])
+        assert "abc123" in out
+        assert "bad456" not in out
+
+    def test_nonzero_exit_with_no_stdout_raises(self, monkeypatch):
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 2
+        fake_result.stdout = ""
+        fake_result.stderr = "boom"
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        with pytest.raises(RuntimeError, match="publish date probe exit"):
+            _probe_publish_dates(["abc123"])
+
+    def test_partial_success_with_ignore_errors(self, monkeypatch):
+        import subprocess
+
+        fake_result = MagicMock()
+        fake_result.returncode = 1
+        fake_result.stdout = "good123|20260408|NA|NA\n"
+        fake_result.stderr = "WARNING: bad456 unavailable\n"
+        monkeypatch.setattr(subprocess, "run", lambda *a, **kw: fake_result)
+
+        out = _probe_publish_dates(["good123", "bad456"])
+        assert out == {"good123": datetime(2026, 4, 8, tzinfo=timezone.utc)}
+
+
 class TestParseYtdlpPublishDate:
     """_parse_ytdlp_publish_date three-tier fallback.
 
@@ -278,21 +420,18 @@ class TestParseYtdlpPublishDate:
         dt = _parse_ytdlp_publish_date("NA", "NA", "1712534400", "vid1")
         assert dt.year == 2024 and dt.month == 4 and dt.day == 8
 
-    def test_all_na_falls_back_to_now(self):
-        before = datetime.now(timezone.utc)
-        dt = _parse_ytdlp_publish_date("NA", "NA", "NA", "vid1")
-        after = datetime.now(timezone.utc)
-        assert before <= dt <= after
+    def test_all_na_returns_none(self):
+        """All-NA returns None so the caller can probe per-video instead of
+        collapsing every such video to the same `now()` timestamp."""
+        assert _parse_ytdlp_publish_date("NA", "NA", "NA", "vid1") is None
 
-    def test_empty_strings_fall_back_to_now(self):
-        before = datetime.now(timezone.utc)
-        dt = _parse_ytdlp_publish_date("", "", "", "vid1")
-        after = datetime.now(timezone.utc)
-        assert before <= dt <= after
+    def test_empty_strings_return_none(self):
+        assert _parse_ytdlp_publish_date("", "", "", "vid1") is None
 
     def test_malformed_upload_date_falls_through(self):
-        """Bad YYYYMMDD falls through to the timestamp chain, not now()."""
+        """Bad YYYYMMDD falls through to the timestamp chain, not None."""
         dt = _parse_ytdlp_publish_date("not-a-date", "1712534400", "", "vid1")
+        assert dt is not None
         assert dt.year == 2024
 
 
