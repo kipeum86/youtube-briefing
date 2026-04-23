@@ -4,9 +4,9 @@
  * Schema follows DESIGN.md §4 of the briefing-hub repo:
  *   { name, category, accent, description, url, updated_at, latest, items[] }
  *
- * items[].url points to the original YouTube video — most useful for sharing
- * or quick access. The briefing summary lives on this site's index/archive
- * pages, which the hub card already links to.
+ * items[].url points to the deep-linked briefing card on this site
+ * (`#v-<video_id>`), which auto-expands on load. The original YouTube video
+ * remains accessible from the "원본 영상" button inside the card.
  */
 import type { APIRoute } from "astro";
 import type { CollectionEntry } from "astro:content";
@@ -32,7 +32,7 @@ export const GET: APIRoute = async () => {
   const items = all.slice(0, MAX_ITEMS).map((entry: BriefingEntry) => ({
     title: entry.data.title,
     source: entry.data.channel_name,
-    url: entry.data.video_url,
+    url: `${SITE_URL}#v-${entry.data.video_id}`,
     published_at: entry.data.published_at.toISOString(),
   }));
 
