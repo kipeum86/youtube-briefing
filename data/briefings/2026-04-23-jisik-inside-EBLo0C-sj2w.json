@@ -1,0 +1,19 @@
+{
+  "video_id": "EBLo0C-sj2w",
+  "channel_slug": "jisik-inside",
+  "channel_name": "지식 인사이드",
+  "title": "골드만삭스도 한 수 배우고 간 국민연금 '역대급' 수익률 비결ㅣ지식인초대석: CEO EP.1 (김성주 이사장)",
+  "published_at": "2026-04-23T10:00:34Z",
+  "video_url": "https://www.youtube.com/watch?v=EBLo0C-sj2w",
+  "thumbnail_url": "https://i.ytimg.com/vi/EBLo0C-sj2w/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-23T21:35:16.782859Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

@@ -1,0 +1,19 @@
+{
+  "video_id": "_7CfYef7PUw",
+  "channel_slug": "shuka",
+  "channel_name": "슈카월드",
+  "title": "크게 증가하는 '평범한 부자들'",
+  "published_at": "2026-04-23T12:59:10Z",
+  "video_url": "https://www.youtube.com/watch?v=_7CfYef7PUw",
+  "thumbnail_url": "https://i.ytimg.com/vi/_7CfYef7PUw/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-23T21:35:06.508713Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

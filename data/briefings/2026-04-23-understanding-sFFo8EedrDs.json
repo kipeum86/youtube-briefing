@@ -1,0 +1,19 @@
+{
+  "video_id": "sFFo8EedrDs",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "보안망 뚫는 괴물 AI '미토스 쇼크' 한국은 결재받다 다 털립니다 (고려대 정보보호대학원 김승주 교수)",
+  "published_at": "2026-04-23T07:55:00Z",
+  "video_url": "https://www.youtube.com/watch?v=sFFo8EedrDs",
+  "thumbnail_url": "https://i.ytimg.com/vi/sFFo8EedrDs/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-23T21:35:13.889546Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}
