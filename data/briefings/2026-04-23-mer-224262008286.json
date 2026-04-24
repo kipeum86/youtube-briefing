@@ -1,0 +1,19 @@
+{
+  "video_id": "224262008286",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "미국 천연가스의 심장, 헨리허브(Henry Hub)를 주목하는 이유?",
+  "published_at": "2026-04-22T21:57:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224262008286",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA0MjNfOTMg/MDAxNzc2ODkzODA4MTc5.WtHDjsZDpZYUDznK0nwER4pjzGEvaWu73r5FLZaSi2Yg.X9AiGkJwZ3z2mJ_IfktxG2P0gOf8p3_tNdTKhMJmr1Yg.PNG/Gemini_Generated_Image_qc89beqc89beqc89.png?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "ok",
+  "summary": "**美 헨리허브, LNG 수출능력 한계와 미래**\n\n글로벌 천연가스 시장은 호르무즈 해협 봉쇄, 카타르 시설 공격, 호주 사이클론 등으로 공급이 크게 위축되어 아시아 및 유럽의 가격이 폭등했다. 그러나 미국의 핵심 천연가스 거래 지표인 헨리허브 가격은 국제 시세와 달리 안정적이거나 낮은 수준을 유지하고 있다. 이는 헨리허브 인근에 미국 최대 규모의 LNG 수출 터미널들이 있음에도 불구하고, 현재의 액화 및 운반 인프라가 수출 물량 증대의 한계로 작용하고 있기 때문이다. 결국 미국의 LNG 수출 인프라 제약이 국내 가격과 국제 가격 간의 괴리를 심화시키고 있다.\n\n호르무즈 해협 봉쇄로 전 세계 공급량의 20%가 감소했으며, 3월 18일 카타르 LNG 수출 시설 공격으로 카타르 수출 능력의 17%가 상실되어 5년 복구가 예상된다. 2026년 3월 26일에는 열대성 사이클론이 호주 해상 가스전을 강타하여 연간 2,900만 톤 규모의 LNG 생산이 중단되었는데, 이는 호주 수출 능력의 30%이자 전 세계 공급량의 8%에 해당한다. 이로 인해 아시아 LNG 가격은 평년 대비 60% 이상 높은 수준을 기록하고 있으며, 유럽의 TTF 가격도 비슷한 추세를 보인다. 반면, 미국 헨리허브 가격은 2026년 1월 한파 이후 오히려 평소보다 낮은 수준을 나타내고 있으며, 2026년 3월 미국의 LNG 수출은 1,170만 톤으로 역대 최고치를 기록했음에도 불구하고 EU TTF 가격과 헨리허브 가격 간에는 21달러의 큰 차이가 발생했다. 퍼미안 분지에서는 2026년 1~4월 중 86%의 기간 동안 천연가스 가격이 마이너스를 기록하는 현상까지 나타났다.\n\n미국의 이러한 수출 인프라 확충은 올해 하반기부터 본격화될 예정이며, 루이지애나주의 Plaquemines LNG, Golden Pass LNG, Corpus Christi Stage 3 등의 가동 및 확장을 통해 2026~2027년까지 미국 LNG 수출 능력이 2026년 4월 대비 30% 이상 증가할 것으로 전망된다. 이러한 변화는 현재 안정적인 미국 국내 천연가스 가격을 국제 시세에 더 가깝게 만들 수 있으나, 동시에 미국 소비자들의 천연가스 가격 상승을 야기할 가능성이 있다. 따라서 향후 국제 천연가스 시장의 가격 동향을 예측할 때 미국의 LNG 수출 시설 확충 계획과 그에 따른 수송 능력 변화를 중요한 변수로 고려해야 한다.",
+  "failure_reason": null,
+  "generated_at": "2026-04-24T01:41:41.622213Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}
