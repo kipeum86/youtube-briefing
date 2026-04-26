@@ -1,0 +1,19 @@
+{
+  "video_id": "5oKUsCNKCdg",
+  "channel_slug": "shuka",
+  "channel_name": "슈카월드",
+  "title": "침팬지들은  왜 어제의 동료를 죽였을까",
+  "published_at": "2026-04-25T12:09:03Z",
+  "video_url": "https://www.youtube.com/watch?v=5oKUsCNKCdg",
+  "thumbnail_url": "https://i.ytimg.com/vi/5oKUsCNKCdg/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-26T21:25:49.417412Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

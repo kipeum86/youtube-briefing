@@ -1,0 +1,19 @@
+{
+  "video_id": "nxPHRHpe2GI",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "(1부) 몸에서 이 냄새 나면 뇌 망가진 겁니다 (DGIST 뇌과학과 문제일 교수)",
+  "published_at": "2026-04-25T11:55:00Z",
+  "video_url": "https://www.youtube.com/watch?v=nxPHRHpe2GI",
+  "thumbnail_url": "https://i.ytimg.com/vi/nxPHRHpe2GI/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-26T21:26:02.827587Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

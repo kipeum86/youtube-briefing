@@ -1,0 +1,19 @@
+{
+  "video_id": "NwNvW0lLVtc",
+  "channel_slug": "shuka",
+  "channel_name": "슈카월드",
+  "title": "AI가 AI를 개발하면 일어나는 일",
+  "published_at": "2026-04-24T09:56:30Z",
+  "video_url": "https://www.youtube.com/watch?v=NwNvW0lLVtc",
+  "thumbnail_url": "https://i.ytimg.com/vi/NwNvW0lLVtc/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-26T21:25:49.906291Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

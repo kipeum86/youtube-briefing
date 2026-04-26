@@ -1,0 +1,19 @@
+{
+  "video_id": "NtksuQIeLKs",
+  "channel_slug": "jisik-inside",
+  "channel_name": "지식 인사이드",
+  "title": "전국민이 열광했던 ‘몬주익 언덕’ 대 역전극의 전말ㅣ지식인초대석 EP.127 (황영조 감독 2부)",
+  "published_at": "2026-04-26T01:00:17Z",
+  "video_url": "https://www.youtube.com/watch?v=NtksuQIeLKs",
+  "thumbnail_url": "https://i.ytimg.com/vi/NtksuQIeLKs/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-26T21:26:08.882006Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

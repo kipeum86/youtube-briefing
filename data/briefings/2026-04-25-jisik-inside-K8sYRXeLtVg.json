@@ -1,0 +1,19 @@
+{
+  "video_id": "K8sYRXeLtVg",
+  "channel_slug": "jisik-inside",
+  "channel_name": "지식 인사이드",
+  "title": "\"이것만 죽어라 반복해라\" 러닝 초보도 5km 쉽게 달리는 훈련법ㅣ지식인초대석 EP.126 (황영조 감독 1부)",
+  "published_at": "2026-04-25T01:00:31Z",
+  "video_url": "https://www.youtube.com/watch?v=K8sYRXeLtVg",
+  "thumbnail_url": "https://i.ytimg.com/vi/K8sYRXeLtVg/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-26T21:26:09.328153Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}

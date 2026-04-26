@@ -1,0 +1,19 @@
+{
+  "video_id": "gs1Vudv3aDs",
+  "channel_slug": "globelab",
+  "channel_name": "최준영 박사의 지구본 연구소",
+  "title": "[합본] 산유국도 아닌데... 대한민국 정유산업이 세계 5위가 된 비결",
+  "published_at": "2026-04-24T23:00:56Z",
+  "video_url": "https://www.youtube.com/watch?v=gs1Vudv3aDs",
+  "thumbnail_url": "https://i.ytimg.com/vi/gs1Vudv3aDs/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "failure_reason": "session_expired",
+  "generated_at": "2026-04-26T21:26:12.972837Z",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v1"
+}
