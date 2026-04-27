@@ -51,10 +51,6 @@ pipeline:
   transcript_cache_dir: data/transcripts
   log_dir: logs
 
-  # Retry policy for transient transcript/summarize failures
-  retry_max_attempts: 2
-  retry_backoff_seconds: 5
-
 channels:
   # Add your channels here. To find a YouTube channel ID from a @handle:
   #   python scripts/resolve-channel-ids.py @your-channel-handle

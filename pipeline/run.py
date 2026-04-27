@@ -35,6 +35,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 import yaml
 
+from pipeline.config import validate_config_dict
 from pipeline.fetchers.discovery import DiscoveryFailure, discover_new_videos
 from pipeline.fetchers.naver_blog import discover_new_blog_posts, extract_blog_post_text
 from pipeline.fetchers.transcript_extractor import (
@@ -65,12 +66,14 @@ logger = logging.getLogger(__name__)
 
 
 def load_config(config_path: Path | str) -> dict:
-    """Load and minimally validate config.yaml."""
+    """Load and validate config.yaml while preserving the existing dict API."""
     config_path = Path(config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"config file not found: {config_path}")
 
-    config = yaml.safe_load(config_path.read_text(encoding="utf-8"))
+    config = yaml.safe_load(config_path.read_text(encoding="utf-8")) or {}
+    if not isinstance(config, dict):
+        raise ValueError(f"config root must be a mapping: {config_path}")
 
     channels = config.get("channels", [])
     blogs = config.get("blogs", [])
@@ -80,19 +83,20 @@ def load_config(config_path: Path | str) -> dict:
             f"config missing required sections (pipeline, channels/blogs): {config_path}"
         )
 
-    for i, ch in enumerate(channels):
-        if not ch.get("id"):
+    for i, ch in enumerate(channels if isinstance(channels, list) else []):
+        if isinstance(ch, dict) and not ch.get("id"):
             raise ValueError(
                 f"channel [{i}] ({ch.get('name', 'unknown')}) has empty id — "
                 f"run scripts/resolve-channel-ids.py"
             )
 
-    for i, blog in enumerate(blogs):
-        if not blog.get("blog_id"):
+    for i, blog in enumerate(blogs if isinstance(blogs, list) else []):
+        if isinstance(blog, dict) and not blog.get("blog_id"):
             raise ValueError(
                 f"blog [{i}] ({blog.get('name', 'unknown')}) has empty blog_id"
             )
 
+    validate_config_dict(config)
     return config
 
 
@@ -296,14 +300,8 @@ def run(
         temperature=summarizer_cfg.get("temperature"),
         max_output_tokens=summarizer_cfg.get("max_output_tokens", 1600),
         request_timeout_seconds=summarizer_cfg.get("request_timeout_seconds", 90),
-        transient_retries=summarizer_cfg.get(
-            "transient_retries",
-            pipeline_cfg.get("retry_max_attempts", 2),
-        ),
-        transient_backoff_seconds=summarizer_cfg.get(
-            "transient_backoff_seconds",
-            pipeline_cfg.get("retry_backoff_seconds", 5),
-        ),
+        transient_retries=summarizer_cfg.get("transient_retries", 2),
+        transient_backoff_seconds=summarizer_cfg.get("transient_backoff_seconds", 5),
     )
     # Apply length constraints from config
     summarizer.min_chars = pipeline_cfg.get("summary_min_chars", 700)
