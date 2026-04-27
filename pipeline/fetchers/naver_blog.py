@@ -91,6 +91,10 @@ KOREAN_DATE_RE = re.compile(
 )
 TIMESTAMP_14_RE = re.compile(r"\b(20\d{12})\b")
 TIMESTAMP_12_RE = re.compile(r"\b(20\d{10})\b")
+# ISO_*, DOT_DATE_RE, KOREAN_DATE_RE are still used by `_parse_blog_datetime`
+# to validate strings already pulled from a labeled source. They are
+# deliberately not used as page-wide search patterns; otherwise dates from
+# article body text or meta descriptions can overwrite the trustworthy RSS date.
 KST = ZoneInfo("Asia/Seoul")
 
 
@@ -305,14 +309,6 @@ def _extract_published_at(html: str) -> datetime | None:
     keyed_match = KEYED_TIMESTAMP_RE.search(head_window)
     if keyed_match:
         parsed = _parse_blog_datetime(keyed_match.group(2))
-        if parsed is not None:
-            return parsed
-
-    for re_obj in (ISO_WITH_TZ_RE, ISO_NO_TZ_RE, DOT_DATE_RE, KOREAN_DATE_RE, TIMESTAMP_14_RE, TIMESTAMP_12_RE):
-        match = re_obj.search(head_window)
-        if not match:
-            continue
-        parsed = _parse_blog_datetime(match.group(0))
         if parsed is not None:
             return parsed
 

@@ -21,7 +21,7 @@ import argparse
 import logging
 import os
 import sys
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # Bootstrap sys.path so `python pipeline/run.py` works from any directory.
@@ -211,13 +211,23 @@ def process_video(
 
     effective_meta = meta
     if transcript_result.published_at is not None and transcript_result.published_at != meta.published_at:
-        logger.info(
-            "[%s] overriding published_at from source page: %s -> %s",
-            meta.channel_slug,
-            meta.published_at.isoformat(),
-            transcript_result.published_at.isoformat(),
-        )
-        effective_meta = meta.model_copy(update={"published_at": transcript_result.published_at})
+        drift = abs(transcript_result.published_at - meta.published_at)
+        if drift > timedelta(days=2):
+            logger.warning(
+                "[%s] rejecting published_at override (drift %s > 2d): discovery=%s, page=%s — keeping discovery value",
+                meta.channel_slug,
+                drift,
+                meta.published_at.isoformat(),
+                transcript_result.published_at.isoformat(),
+            )
+        else:
+            logger.info(
+                "[%s] overriding published_at from source page: %s -> %s",
+                meta.channel_slug,
+                meta.published_at.isoformat(),
+                transcript_result.published_at.isoformat(),
+            )
+            effective_meta = meta.model_copy(update={"published_at": transcript_result.published_at})
 
     try:
         result = summarizer.summarize(transcript_result.text, effective_meta)

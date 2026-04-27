@@ -159,3 +159,37 @@ class TestExtractBlogPostText:
         )
 
         assert result.published_at == datetime(2026, 4, 12, 22, 5, 47, tzinfo=timezone.utc)
+
+    def test_prefers_labeled_publish_date_over_content_dates(self):
+        html = """
+        <html>
+          <head>
+            <meta property="og:description" content="본문은 2026년 5월 15일 도착 예정인 사건을 설명한다." />
+          </head>
+          <body>
+            <p class="blog_date">2026. 4. 24. 7:55</p>
+            <div class="se-main-container">
+              <p>본문 날짜 2026년 5월 15일은 글이 언급하는 사건일 뿐이다.</p>
+            </div>
+          </body>
+        </html>
+        """
+
+        assert naver_blog._extract_published_at(html) == datetime(
+            2026, 4, 23, 22, 55, tzinfo=timezone.utc
+        )
+
+    def test_returns_none_when_no_labeled_date_source_present(self):
+        html = """
+        <html>
+          <head>
+            <meta property="og:description" content="2026년 5월 15일에 일어날 일에 대한 글입니다." />
+            <title>본문 날짜만 있는 페이지</title>
+          </head>
+          <body>
+            <p>2026. 5. 15. 화성 도착 예정.</p>
+          </body>
+        </html>
+        """
+
+        assert naver_blog._extract_published_at(html) is None
