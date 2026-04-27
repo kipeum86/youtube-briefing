@@ -10,7 +10,8 @@ pipeline:
     # Use the latest available Gemini Flash model string at the time of setup.
     # "-latest" aliases and "-preview" models are fine per user decision (qualitative eval only).
     model: gemini-2.5-flash
-    prompt_version: v1
+    # Set PROMPT_VERSION_OVERRIDE=v1 locally if you need a quick rollback.
+    prompt_version: v2
 
   # Summary length constraints (Korean characters)
   summary_min_chars: 700

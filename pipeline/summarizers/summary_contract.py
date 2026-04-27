@@ -1,9 +1,8 @@
 """Summary shape parsing and validation.
 
-This module defines the contract expected by the briefing UI without enforcing
-it in the generation pipeline yet. The runtime enforcement should be wired in
-with prompt v2 + repair support so existing v1 drift does not become a sudden
-placeholder spike.
+This module defines the contract expected by the briefing UI. Runtime
+enforcement lives in the Summarizer policy, where invalid generations can be
+repaired or retried before the pipeline writes a placeholder.
 """
 
 from __future__ import annotations
