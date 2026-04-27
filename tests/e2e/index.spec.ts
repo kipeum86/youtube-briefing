@@ -85,6 +85,24 @@ test.describe("index page", () => {
     await expect(firstCard).toHaveAttribute("data-expanded", "false");
   });
 
+  test("structured summary sections render before legacy summary text", async ({ page }) => {
+    await page.goto("/youtube-briefing/");
+
+    const card = page.locator("#v-struct001");
+    await expect(card).toBeVisible();
+    await expect(card.locator(".preview")).toContainText("구조화 thesis 문단");
+    await expect(card).not.toContainText("레거시 파서 전용 문장");
+
+    await card.locator("[data-expand-button]").click();
+
+    await expect(card).toHaveAttribute("data-expanded", "true");
+    await expect(card.locator(".full-summary-headline")).toHaveText("구조화 요약 검증");
+    await expect(card.locator(".full-summary p")).toHaveCount(3);
+    await expect(card.locator(".full-summary")).toContainText("구조화 evidence 문단");
+    await expect(card.locator(".full-summary")).toContainText("구조화 implication 문단");
+    await expect(card).not.toContainText("레거시 파서 전용 문장");
+  });
+
   test("channel filter chip click filters the feed", async ({ page }) => {
     await page.goto("/youtube-briefing/");
 

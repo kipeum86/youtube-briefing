@@ -1,0 +1,25 @@
+{
+  "video_id": "struct001",
+  "channel_slug": "shuka",
+  "channel_name": "슈카월드",
+  "title": "구조화 요약 렌더링 검증용 브리핑",
+  "published_at": "2026-04-27T03:00:00+00:00",
+  "video_url": "https://www.youtube.com/watch?v=struct001",
+  "thumbnail_url": "https://i.ytimg.com/vi/struct001/hqdefault.jpg",
+  "duration_seconds": 1847,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "ok",
+  "summary": "레거시 파서 전용 문장입니다. 이 문장은 구조화 요약 필드가 우선 렌더링될 때 화면에 나타나면 안 됩니다. 기존 summary 문자열은 하위 호환 저장용으로만 남아 있습니다.",
+  "summary_sections": {
+    "headline": "구조화 요약 검증",
+    "thesis": "구조화 thesis 문단은 카드 미리보기와 펼친 본문에서 우선 표시되어야 한다. 이 문단은 legacy summary 문자열과 다른 고유 문장을 담아 렌더링 경로를 검증한다.",
+    "evidence": "구조화 evidence 문단은 숫자 3개 필드와 정책명 같은 근거 정보를 별도 문단으로 보존한다. 파서가 임의로 단락을 추정하지 않아도 이 문단이 두 번째 본문으로 표시되어야 한다.",
+    "implication": "구조화 implication 문단은 마지막 관전 포인트를 담는다. 사용자는 펼쳐보기 이후 헤드라인, 핵심 주장, 근거, 함의를 안정적인 순서로 읽을 수 있어야 한다."
+  },
+  "failure_reason": null,
+  "generated_at": "2026-04-27T21:15:32+00:00",
+  "provider": "gemini",
+  "model": "gemini-2.5-flash",
+  "prompt_version": "v2"
+}
