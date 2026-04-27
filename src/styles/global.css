@@ -204,6 +204,13 @@ body {
   font-weight: 900;
 }
 
+.masthead .updated-line {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--meta);
+  font-weight: 900;
+}
+
 @media (min-width: 960px) {
   /* Desktop: rail shows the issue info, hide the inline version */
   .masthead .issue-line {

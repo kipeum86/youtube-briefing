@@ -16,15 +16,7 @@
 import { expect, test } from "@playwright/test";
 
 test.describe("index page", () => {
-  const expectedChipOrder = [
-    "전체",
-    "메르(블로그)",
-    "박종훈",
-    "슈카월드",
-    "언더스탠딩",
-    "지식인사이드",
-    "지구본연구소",
-  ];
+  const requiredChipLabels = ["전체", "박종훈", "슈카월드", "언더스탠딩"];
 
   // Each test gets a fresh browser context via the per-test `page` fixture,
   // so localStorage is already empty at test start. We do NOT use
@@ -37,6 +29,9 @@ test.describe("index page", () => {
 
     // Brand mark
     await expect(page.locator(".masthead .mark")).toHaveText("YOUTUBE BRIEFING");
+    await expect(page.locator(".masthead .updated-line")).toHaveText(
+      "마지막 업데이트 · 2026.04.28 06:15 KST",
+    );
 
     // Top tabs
     const recentTab = page.locator(".tabs a", { hasText: "최근" });
@@ -44,14 +39,17 @@ test.describe("index page", () => {
     await expect(recentTab).toHaveAttribute("aria-current", "page");
     await expect(archiveTab).not.toHaveAttribute("aria-current", "page");
 
-    // Channel filter chips — "전체" active, 5 channels listed
+    // Channel filter chips are derived from available briefing sources.
     await expect(page.locator('[role="radiogroup"][aria-label="소스 필터"]')).toBeVisible();
     await expect(page.locator('[role="radio"]', { hasText: "전체" })).toHaveAttribute("aria-checked", "true");
-    await expect(page.locator('[role="radio"]', { hasText: "슈카월드" })).toBeVisible();
-    await expect(page.locator('[role="radio"]', { hasText: "언더스탠딩" })).toBeVisible();
-    await expect(page.locator('[role="radio"]', { hasText: "지구본연구소" })).toBeVisible();
-    await expect(page.locator('[role="radio"]', { hasText: "메르(블로그)" })).toBeVisible();
-    await expect(page.locator("[data-channel-filter] [role='radio']")).toHaveText(expectedChipOrder);
+    for (const label of requiredChipLabels) {
+      await expect(page.locator('[role="radio"]', { hasText: label })).toBeVisible();
+    }
+
+    const chipLabels = (await page.locator("[data-channel-filter] [role='radio']").allTextContents())
+      .map((label) => label.trim());
+    expect(chipLabels[0]).toBe("전체");
+    expect(new Set(chipLabels).size).toBe(chipLabels.length);
 
     // At least one briefing card
     const cards = page.locator("article.briefing");
@@ -107,6 +105,8 @@ test.describe("index page", () => {
     await page.goto("/youtube-briefing/");
 
     // Click the shuka chip
+    const initialChipLabels = (await page.locator("[data-channel-filter] [role='radio']").allTextContents())
+      .map((label) => label.trim());
     await page.locator('[role="radio"]', { hasText: "슈카월드" }).click();
 
     // URL should have ?channel=shuka
@@ -128,7 +128,9 @@ test.describe("index page", () => {
     }
 
     // Chip order should remain stable after filtering
-    await expect(page.locator("[data-channel-filter] [role='radio']")).toHaveText(expectedChipOrder);
+    const filteredChipLabels = (await page.locator("[data-channel-filter] [role='radio']").allTextContents())
+      .map((label) => label.trim());
+    expect(filteredChipLabels).toEqual(initialChipLabels);
   });
 
   test("dismissible intro removes itself and persists", async ({ page }) => {

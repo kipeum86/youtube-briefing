@@ -11,6 +11,11 @@ import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import BriefingCard from "../components/BriefingCard.astro";
 import ChannelFilter from "../components/ChannelFilter.astro";
+import {
+  buildSourceOptions,
+  formatKstDateTime,
+  latestGeneratedAt,
+} from "../lib/briefingMeta";
 
 type BriefingEntry = CollectionEntry<"briefing">;
 
@@ -43,14 +48,7 @@ for (const b of allBriefings) {
 }
 const weekKeys = Array.from(grouped.keys()).sort().reverse();
 
-const channelOrder = [
-  { slug: "mer", name: "메르(블로그)" },
-  { slug: "parkjonghoon", name: "박종훈" },
-  { slug: "shuka", name: "슈카월드" },
-  { slug: "understanding", name: "언더스탠딩" },
-  { slug: "jisik-inside", name: "지식인사이드" },
-  { slug: "globelab", name: "지구본연구소" },
-];
+const sourceOptions = buildSourceOptions(allBriefings);
 
 function formatKstDot(date: Date): string {
   const kstMs = date.getTime() + 9 * 60 * 60 * 1000;
@@ -64,10 +62,17 @@ function formatKstDot(date: Date): string {
 const newestDate = allBriefings[0]?.data.published_at ?? new Date();
 const issueWeek = weekKeys[0]?.split("-")[1] ?? "W01";
 const issueDate = formatKstDot(newestDate);
+const lastGeneratedAt = latestGeneratedAt(allBriefings);
+const lastUpdatedLabel = lastGeneratedAt ? formatKstDateTime(lastGeneratedAt) : null;
 ---
 
-<Base title="Archive · YouTube Briefing" activeTab="archive" issueWeek={issueWeek} issueDate={issueDate}>
-  <ChannelFilter channels={channelOrder} />
+<Base
+  title="Archive · YouTube Briefing"
+  activeTab="archive"
+  issueWeek={issueWeek}
+  issueDate={issueDate}
+  lastUpdatedLabel={lastUpdatedLabel}>
+  <ChannelFilter channels={sourceOptions} />
 
   <main id="main">
     <h1 class="visually-hidden">아카이브</h1>

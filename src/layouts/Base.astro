@@ -17,6 +17,7 @@
  *   - activeTab: "recent" | "archive" — controls aria-current on tabs
  *   - issueWeek: the ISO week number for the rail (e.g. "W15")
  *   - issueDate: the ISO date for the rail (e.g. "2026.04.10")
+ *   - lastUpdatedLabel: latest generated_at timestamp, formatted for display
  */
 import "../styles/global.css";
 import HubChip from "../components/HubChip.astro";
@@ -26,9 +27,10 @@ interface Props {
   activeTab: "recent" | "archive";
   issueWeek: string;
   issueDate: string;
+  lastUpdatedLabel?: string | null;
 }
 
-const { title, activeTab, issueWeek, issueDate } = Astro.props;
+const { title, activeTab, issueWeek, issueDate, lastUpdatedLabel = null } = Astro.props;
 
 // Compute WEEKDAY in Korean from issueDate string (YYYY.MM.DD)
 function weekdayKor(dateStr: string): string {
@@ -85,6 +87,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, "");
             <a href={`${base}/`}>
               <div class="mark">YOUTUBE BRIEFING</div>
               <div class="issue-line">{issueWeek} · {weekday} · {issueDate}</div>
+              {lastUpdatedLabel && (
+                <div class="updated-line">마지막 업데이트 · {lastUpdatedLabel}</div>
+              )}
             </a>
           </div>
           <nav class="tabs" aria-label="주 메뉴">

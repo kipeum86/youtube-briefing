@@ -12,6 +12,12 @@ import Base from "../layouts/Base.astro";
 import BriefingCard from "../components/BriefingCard.astro";
 import ChannelFilter from "../components/ChannelFilter.astro";
 import EmptyState from "../components/EmptyState.astro";
+import {
+  buildSourceOptions,
+  formatKstDateTime,
+  latestGeneratedAt,
+  sourceMixLabel,
+} from "../lib/briefingMeta";
 
 type BriefingEntry = CollectionEntry<"briefing">;
 
@@ -51,21 +57,14 @@ if (!recentBriefings.some((b: BriefingEntry) => b.data.channel_slug === "parkjon
   }
 }
 
-// Compute source list for the filter chips (deterministic order matching config)
-const channelOrder = [
-  { slug: "mer", name: "메르(블로그)" },
-  { slug: "parkjonghoon", name: "박종훈" },
-  { slug: "shuka", name: "슈카월드" },
-  { slug: "understanding", name: "언더스탠딩" },
-  { slug: "jisik-inside", name: "지식인사이드" },
-  { slug: "globelab", name: "지구본연구소" },
-];
+const sourceOptions = buildSourceOptions(allBriefings);
+const introSourceLabel = sourceMixLabel(allBriefings);
 
 // Dim chips that have no briefings in the current view
 const presentSlugs = new Set(
   recentBriefings.map((b: BriefingEntry) => b.data.channel_slug),
 );
-const zeroCountSlugs = channelOrder
+const zeroCountSlugs = sourceOptions
   .map((c) => c.slug)
   .filter((slug) => !presentSlugs.has(slug));
 
@@ -95,9 +94,16 @@ function formatKstDot(date: Date): string {
 const newestDate = recentBriefings[0]?.data.published_at ?? new Date();
 const issueWeek = isoWeekNumber(newestDate);
 const issueDate = formatKstDot(newestDate);
+const lastGeneratedAt = latestGeneratedAt(allBriefings);
+const lastUpdatedLabel = lastGeneratedAt ? formatKstDateTime(lastGeneratedAt) : null;
 ---
 
-<Base title="YouTube Briefing" activeTab="recent" issueWeek={issueWeek} issueDate={issueDate}>
+<Base
+  title="YouTube Briefing"
+  activeTab="recent"
+  issueWeek={issueWeek}
+  issueDate={issueDate}
+  lastUpdatedLabel={lastUpdatedLabel}>
   {
     allBriefings.length === 0 ? (
       <main id="main">
@@ -107,14 +113,14 @@ const issueDate = formatKstDot(newestDate);
       <>
         <div class="intro" data-intro>
           <p>
-            <b>5개 한국 경제·시사 유튜브 채널 + 1개 네이버 블로그</b>를 월·수·금 아침마다 700–1,200자
-            한국어로 요약하는 에디토리얼 피드. 메르(블로그)를 포함해, 유튜브는 NotebookLM, 블로그는
-            RSS + 모바일 본문 추출, 요약은 Gemini로 자동 생성.
+            <b>{introSourceLabel}</b>를 월·수·금 아침마다 700–1,200자
+            한국어로 요약하는 에디토리얼 피드. 유튜브는 NotebookLM, 블로그는 RSS + 모바일 본문 추출,
+            요약은 Gemini로 자동 생성.
           </p>
           <button type="button" aria-label="소개 닫기" data-dismiss-intro>×</button>
         </div>
 
-        <ChannelFilter channels={channelOrder} zeroCountSlugs={zeroCountSlugs} />
+        <ChannelFilter channels={sourceOptions} zeroCountSlugs={zeroCountSlugs} />
 
         <main id="main">
           <h1 class="visually-hidden">최신 브리핑</h1>
