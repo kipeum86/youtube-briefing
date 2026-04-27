@@ -35,6 +35,8 @@ pipeline:
   # enough headroom for channels that post 2-3 videos/day between runs,
   # not so many that 3-day steady-state processing balloons.
   max_new_videos_per_channel: 10
+  max_discovery_concurrency: 4
+  max_processing_concurrency: 2
 
   # Skip videos shorter than this many seconds. Set to filter out Shorts,
   # which live on the same channel upload feed as regular videos but aren't

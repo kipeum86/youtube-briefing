@@ -21,6 +21,8 @@ import argparse
 import logging
 import os
 import sys
+from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -35,7 +37,13 @@ if str(_REPO_ROOT) not in sys.path:
 
 import yaml
 
-from pipeline.config import validate_config_dict
+from pipeline.config import (
+    AppConfig,
+    BlogConfig,
+    ChannelConfig,
+    PipelineConfig,
+    validate_config_dict,
+)
 from pipeline.fetchers.discovery import DiscoveryFailure, discover_new_videos
 from pipeline.fetchers.naver_blog import discover_new_blog_posts, extract_blog_post_text
 from pipeline.fetchers.transcript_extractor import (
@@ -66,8 +74,26 @@ from pipeline.writers.json_store import (
 logger = logging.getLogger(__name__)
 
 
-def load_config(config_path: Path | str) -> dict:
-    """Load and validate config.yaml while preserving the existing dict API."""
+@dataclass(frozen=True)
+class SourceSpec:
+    """One configured source plus its per-channel processed-id set."""
+
+    kind: str
+    source_id: str
+    slug: str
+    name: str
+    known_video_ids: set[str]
+
+
+@dataclass(frozen=True)
+class DiscoveryOutcome:
+    source: SourceSpec
+    items: list[VideoMeta]
+    failed: bool = False
+
+
+def load_config(config_path: Path | str) -> AppConfig:
+    """Load config.yaml and return a typed AppConfig."""
     config_path = Path(config_path)
     if not config_path.exists():
         raise FileNotFoundError(f"config file not found: {config_path}")
@@ -97,8 +123,7 @@ def load_config(config_path: Path | str) -> dict:
                 f"blog [{i}] ({blog.get('name', 'unknown')}) has empty blog_id"
             )
 
-    validate_config_dict(config)
-    return config
+    return validate_config_dict(config)
 
 
 def _default_source_url(meta: VideoMeta) -> str:
@@ -177,6 +202,31 @@ def build_briefing_from_permanent_failure(
         model=model,
         prompt_version=prompt_version,
     )
+
+
+def build_summarizer_from_config(pipeline_cfg: PipelineConfig) -> Summarizer:
+    """Create a summarizer from typed pipeline config."""
+    summarizer_cfg = pipeline_cfg.summarizer
+    summarizer = load_summarizer(
+        provider=summarizer_cfg.provider,
+        model=summarizer_cfg.model,
+        prompt_version=summarizer_cfg.prompt_version,
+        repair_model=summarizer_cfg.repair_model,
+        output_format=summarizer_cfg.output_format,
+        temperature=summarizer_cfg.temperature,
+        max_output_tokens=summarizer_cfg.max_output_tokens,
+        request_timeout_seconds=summarizer_cfg.request_timeout_seconds,
+        transient_retries=summarizer_cfg.transient_retries,
+        transient_backoff_seconds=summarizer_cfg.transient_backoff_seconds,
+    )
+    summarizer.min_chars = pipeline_cfg.summary_min_chars
+    summarizer.max_chars = pipeline_cfg.summary_max_chars
+    summarizer.headline_max_chars = pipeline_cfg.summary_headline_max_chars
+    summarizer.max_retries_on_short = summarizer_cfg.short_output_retries
+    summarizer.max_format_repair_attempts = summarizer_cfg.repair_attempts
+    summarizer.max_full_retries = summarizer_cfg.full_retries
+    summarizer.context_max_chars = pipeline_cfg.context_max_chars
+    return summarizer
 
 
 def process_video(
@@ -265,6 +315,257 @@ def process_video(
     return briefing
 
 
+def _build_source_specs(
+    config: AppConfig,
+    known_by_channel: dict[str, set[str]],
+    only_channel: str | None,
+) -> list[SourceSpec]:
+    specs: list[SourceSpec] = []
+    for channel in config.channels:
+        if only_channel and channel.slug != only_channel:
+            logger.debug("[%s] skipped (only_channel=%s)", channel.slug, only_channel)
+            continue
+        specs.append(_youtube_source_spec(channel, known_by_channel))
+
+    for blog in config.blogs:
+        if only_channel and blog.slug != only_channel:
+            logger.debug("[%s] skipped (only_channel=%s)", blog.slug, only_channel)
+            continue
+        specs.append(_blog_source_spec(blog, known_by_channel))
+
+    return specs
+
+
+def _youtube_source_spec(
+    channel: ChannelConfig,
+    known_by_channel: dict[str, set[str]],
+) -> SourceSpec:
+    return SourceSpec(
+        kind="youtube",
+        source_id=channel.id,
+        slug=channel.slug,
+        name=channel.name,
+        known_video_ids=known_by_channel.get(channel.slug, set()),
+    )
+
+
+def _blog_source_spec(
+    blog: BlogConfig,
+    known_by_channel: dict[str, set[str]],
+) -> SourceSpec:
+    return SourceSpec(
+        kind="naver_blog",
+        source_id=blog.blog_id,
+        slug=blog.slug,
+        name=blog.name,
+        known_video_ids=known_by_channel.get(blog.slug, set()),
+    )
+
+
+def _discover_source(
+    source: SourceSpec,
+    *,
+    max_per_source: int,
+    min_duration_seconds: int | None,
+) -> DiscoveryOutcome:
+    try:
+        if source.kind == "youtube":
+            items = discover_new_videos(
+                channel_id=source.source_id,
+                channel_slug=source.slug,
+                channel_name=source.name,
+                known_video_ids=source.known_video_ids,
+                max_new_videos=max_per_source,
+                min_duration_seconds=min_duration_seconds,
+            )
+        else:
+            items = discover_new_blog_posts(
+                blog_id=source.source_id,
+                channel_slug=source.slug,
+                channel_name=source.name,
+                known_video_ids=source.known_video_ids,
+                max_new_posts=max_per_source,
+            )
+    except DiscoveryFailure as e:
+        logger.error("[%s] discovery failed, skipping source: %s", source.slug, e)
+        return DiscoveryOutcome(source=source, items=[], failed=True)
+
+    if not items:
+        logger.info("[%s] no new items", source.slug)
+    else:
+        logger.info("[%s] %d new item(s) to process", source.slug, len(items))
+    return DiscoveryOutcome(source=source, items=items)
+
+
+def _discover_sources(
+    sources: list[SourceSpec],
+    pipeline_cfg: PipelineConfig,
+) -> list[DiscoveryOutcome]:
+    if not sources:
+        return []
+
+    max_workers = min(pipeline_cfg.max_discovery_concurrency, len(sources))
+    if max_workers <= 1:
+        return [
+            _discover_source(
+                source,
+                max_per_source=pipeline_cfg.max_new_videos_per_channel,
+                min_duration_seconds=pipeline_cfg.min_duration_seconds,
+            )
+            for source in sources
+        ]
+
+    outcomes: list[DiscoveryOutcome | None] = [None] * len(sources)
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_index = {
+            executor.submit(
+                _discover_source,
+                source,
+                max_per_source=pipeline_cfg.max_new_videos_per_channel,
+                min_duration_seconds=pipeline_cfg.min_duration_seconds,
+            ): index
+            for index, source in enumerate(sources)
+        }
+        for future in as_completed(future_to_index):
+            index = future_to_index[future]
+            outcomes[index] = future.result()
+
+    return [outcome for outcome in outcomes if outcome is not None]
+
+
+def _plan_items_to_process(
+    outcomes: list[DiscoveryOutcome],
+    *,
+    dry_run: bool,
+    limit: int | None,
+) -> tuple[list[VideoMeta], int]:
+    planned: list[VideoMeta] = []
+    dry_run_skipped = 0
+    for outcome in outcomes:
+        if outcome.failed:
+            continue
+        for meta in outcome.items:
+            if limit is not None and len(planned) + dry_run_skipped >= limit:
+                logger.info("limit=%d reached, stopping", limit)
+                return planned, dry_run_skipped
+            if dry_run:
+                logger.info("[DRY-RUN] would process %s: %s", meta.video_id, meta.title)
+                dry_run_skipped += 1
+            else:
+                planned.append(meta)
+    return planned, dry_run_skipped
+
+
+def _process_one_planned_item(
+    meta: VideoMeta,
+    *,
+    pipeline_cfg: PipelineConfig,
+    briefings_dir: Path,
+    transcript_cache_dir: Path,
+) -> Briefing | None:
+    return process_video(
+        meta=meta,
+        summarizer=build_summarizer_from_config(pipeline_cfg),
+        briefings_dir=briefings_dir,
+        transcript_cache_dir=transcript_cache_dir,
+    )
+
+
+def _process_planned_items(
+    planned_items: list[VideoMeta],
+    *,
+    pipeline_cfg: PipelineConfig,
+    briefings_dir: Path,
+    transcript_cache_dir: Path,
+    known_by_channel: dict[str, set[str]],
+) -> tuple[int, int]:
+    if not planned_items:
+        return 0, 0
+
+    if pipeline_cfg.max_processing_concurrency <= 1:
+        return _process_planned_items_sequentially(
+            planned_items,
+            pipeline_cfg=pipeline_cfg,
+            briefings_dir=briefings_dir,
+            transcript_cache_dir=transcript_cache_dir,
+            known_by_channel=known_by_channel,
+        )
+
+    written = 0
+    skipped = 0
+    max_workers = min(pipeline_cfg.max_processing_concurrency, len(planned_items))
+    with ThreadPoolExecutor(max_workers=max_workers) as executor:
+        future_to_meta = {
+            executor.submit(
+                _process_one_planned_item,
+                meta,
+                pipeline_cfg=pipeline_cfg,
+                briefings_dir=briefings_dir,
+                transcript_cache_dir=transcript_cache_dir,
+            ): meta
+            for meta in planned_items
+        }
+        for future in as_completed(future_to_meta):
+            meta = future_to_meta[future]
+            try:
+                result = future.result()
+            except Exception as e:  # noqa: BLE001
+                logger.exception(
+                    "[%s] unhandled exception processing %s, continuing to next item: %s",
+                    meta.channel_slug,
+                    meta.video_id,
+                    e,
+                )
+                skipped += 1
+                continue
+
+            if result is None:
+                skipped += 1
+            else:
+                written += 1
+                known_by_channel.setdefault(meta.channel_slug, set()).add(meta.video_id)
+
+    return written, skipped
+
+
+def _process_planned_items_sequentially(
+    planned_items: list[VideoMeta],
+    *,
+    pipeline_cfg: PipelineConfig,
+    briefings_dir: Path,
+    transcript_cache_dir: Path,
+    known_by_channel: dict[str, set[str]],
+) -> tuple[int, int]:
+    summarizer = build_summarizer_from_config(pipeline_cfg)
+    written = 0
+    skipped = 0
+    for meta in planned_items:
+        try:
+            result = process_video(
+                meta=meta,
+                summarizer=summarizer,
+                briefings_dir=briefings_dir,
+                transcript_cache_dir=transcript_cache_dir,
+            )
+        except Exception as e:  # noqa: BLE001
+            logger.exception(
+                "[%s] unhandled exception processing %s, continuing to next item: %s",
+                meta.channel_slug,
+                meta.video_id,
+                e,
+            )
+            skipped += 1
+            continue
+
+        if result is None:
+            skipped += 1
+        else:
+            written += 1
+            known_by_channel.setdefault(meta.channel_slug, set()).add(meta.video_id)
+
+    return written, skipped
+
+
 def run(
     config_path: Path | str,
     briefings_dir: Path | str,
@@ -290,196 +591,44 @@ def run(
     briefings_dir = Path(briefings_dir)
     briefings_dir.mkdir(parents=True, exist_ok=True)
 
-    pipeline_cfg = config["pipeline"]
-    transcript_cache_dir = Path(pipeline_cfg.get("transcript_cache_dir", "data/transcripts"))
+    pipeline_cfg = config.pipeline
+    transcript_cache_dir = Path(pipeline_cfg.transcript_cache_dir)
     transcript_cache_dir.mkdir(parents=True, exist_ok=True)
-
-    summarizer_cfg = pipeline_cfg["summarizer"]
-    summarizer = load_summarizer(
-        provider=summarizer_cfg["provider"],
-        model=summarizer_cfg["model"],
-        prompt_version=summarizer_cfg.get("prompt_version", "v1"),
-        repair_model=summarizer_cfg.get("repair_model"),
-        output_format=summarizer_cfg.get("output_format", "free"),
-        temperature=summarizer_cfg.get("temperature"),
-        max_output_tokens=summarizer_cfg.get("max_output_tokens", 1600),
-        request_timeout_seconds=summarizer_cfg.get("request_timeout_seconds", 90),
-        transient_retries=summarizer_cfg.get("transient_retries", 2),
-        transient_backoff_seconds=summarizer_cfg.get("transient_backoff_seconds", 5),
-    )
-    # Apply length constraints from config
-    summarizer.min_chars = pipeline_cfg.get("summary_min_chars", 700)
-    summarizer.max_chars = pipeline_cfg.get("summary_max_chars", 1200)
-    summarizer.headline_max_chars = pipeline_cfg.get("summary_headline_max_chars", 24)
-    summarizer.max_retries_on_short = summarizer_cfg.get("short_output_retries", 1)
-    summarizer.max_format_repair_attempts = summarizer_cfg.get("repair_attempts", 1)
-    summarizer.max_full_retries = summarizer_cfg.get("full_retries", 1)
-    summarizer.context_max_chars = pipeline_cfg.get("context_max_chars", 30_000)
-
-    # Per-source discovery cap — how many NEW items per source per run
-    max_per_channel = pipeline_cfg.get("max_new_videos_per_channel", 10)
-
-    # Duration floor — filter out Shorts / tiny clips before processing.
-    # 600s = 10 minutes. None or 0 disables the filter.
-    min_duration_seconds = pipeline_cfg.get("min_duration_seconds", 600)
 
     # Per-channel known set so the saturation check is scoped correctly.
     # See list_processed_video_ids_by_channel for the rationale.
     known_by_channel = list_processed_video_ids_by_channel(briefings_dir)
     total_known = sum(len(v) for v in known_by_channel.values())
-    channels = config.get("channels", [])
-    blogs = config.get("blogs", [])
-    total_sources = len(channels) + len(blogs)
+    sources = _build_source_specs(config, known_by_channel, only_channel)
+    total_sources = len(sources)
     logger.info(
-        "pipeline starting: %d sources (%d youtube + %d naver blog), %d known items total, max %d new per source%s%s",
+        "pipeline starting: %d sources (%d youtube + %d naver blog), %d known items total, max %d new per source, discovery_concurrency=%d, processing_concurrency=%d%s%s",
         total_sources,
-        len(channels),
-        len(blogs),
+        len([source for source in sources if source.kind == "youtube"]),
+        len([source for source in sources if source.kind == "naver_blog"]),
         total_known,
-        max_per_channel,
+        pipeline_cfg.max_new_videos_per_channel,
+        pipeline_cfg.max_discovery_concurrency,
+        pipeline_cfg.max_processing_concurrency,
         f", limit={limit}" if limit else "",
         f", only_channel={only_channel}" if only_channel else "",
     )
 
-    total_written = 0
-    total_skipped = 0
-    sources_failed = 0
-
-    for channel in channels:
-        channel_slug = channel["slug"]
-
-        if only_channel and channel_slug != only_channel:
-            logger.debug("[%s] skipped (only_channel=%s)", channel_slug, only_channel)
-            continue
-
-        # Only this channel's known IDs are passed in. Cross-channel known IDs
-        # would cause false-positive saturation: a video_id from another
-        # channel can never appear in this channel's RSS, so the "any RSS
-        # item match a known id?" check would always be no, triggering yt-dlp
-        # catchup unnecessarily.
-        channel_known = known_by_channel.get(channel_slug, set())
-
-        try:
-            new_videos = discover_new_videos(
-                channel_id=channel["id"],
-                channel_slug=channel_slug,
-                channel_name=channel["name"],
-                known_video_ids=channel_known,
-                max_new_videos=max_per_channel,
-                min_duration_seconds=min_duration_seconds,
-            )
-        except DiscoveryFailure as e:
-            logger.error("[%s] discovery failed, skipping source: %s", channel_slug, e)
-            sources_failed += 1
-            continue
-
-        if not new_videos:
-            logger.info("[%s] no new items", channel_slug)
-            continue
-
-        logger.info("[%s] %d new item(s) to process", channel_slug, len(new_videos))
-
-        for meta in new_videos:
-            # Enforce --limit across all channels (not per-channel)
-            if limit is not None and (total_written + total_skipped) >= limit:
-                logger.info("limit=%d reached, stopping", limit)
-                break
-
-            if dry_run:
-                logger.info("[DRY-RUN] would process %s: %s", meta.video_id, meta.title)
-                total_skipped += 1
-                continue
-
-            try:
-                result = process_video(
-                    meta=meta,
-                    summarizer=summarizer,
-                    briefings_dir=briefings_dir,
-                    transcript_cache_dir=transcript_cache_dir,
-                )
-            except Exception as e:  # noqa: BLE001 — REGRESSION: never halt on unexpected errors
-                logger.exception(
-                    "[%s] unhandled exception processing %s, continuing to next video: %s",
-                    channel_slug,
-                    meta.video_id,
-                    e,
-                )
-                total_skipped += 1
-                continue
-
-            if result is None:
-                total_skipped += 1
-            else:
-                total_written += 1
-                channel_known.add(meta.video_id)  # avoid re-processing within same run
-
-        # Honor --limit at the outer loop too so we don't start a new channel
-        if limit is not None and (total_written + total_skipped) >= limit:
-            break
-
-    for blog in blogs:
-        blog_slug = blog["slug"]
-
-        if only_channel and blog_slug != only_channel:
-            logger.debug("[%s] skipped (only_channel=%s)", blog_slug, only_channel)
-            continue
-
-        blog_known = known_by_channel.get(blog_slug, set())
-
-        try:
-            new_posts = discover_new_blog_posts(
-                blog_id=blog["blog_id"],
-                channel_slug=blog_slug,
-                channel_name=blog["name"],
-                known_video_ids=blog_known,
-                max_new_posts=max_per_channel,
-            )
-        except DiscoveryFailure as e:
-            logger.error("[%s] discovery failed, skipping source: %s", blog_slug, e)
-            sources_failed += 1
-            continue
-
-        if not new_posts:
-            logger.info("[%s] no new items", blog_slug)
-            continue
-
-        logger.info("[%s] %d new item(s) to process", blog_slug, len(new_posts))
-
-        for meta in new_posts:
-            if limit is not None and (total_written + total_skipped) >= limit:
-                logger.info("limit=%d reached, stopping", limit)
-                break
-
-            if dry_run:
-                logger.info("[DRY-RUN] would process %s: %s", meta.video_id, meta.title)
-                total_skipped += 1
-                continue
-
-            try:
-                result = process_video(
-                    meta=meta,
-                    summarizer=summarizer,
-                    briefings_dir=briefings_dir,
-                    transcript_cache_dir=transcript_cache_dir,
-                )
-            except Exception as e:  # noqa: BLE001
-                logger.exception(
-                    "[%s] unhandled exception processing %s, continuing to next item: %s",
-                    blog_slug,
-                    meta.video_id,
-                    e,
-                )
-                total_skipped += 1
-                continue
-
-            if result is None:
-                total_skipped += 1
-            else:
-                total_written += 1
-                blog_known.add(meta.video_id)
-
-        if limit is not None and (total_written + total_skipped) >= limit:
-            break
+    outcomes = _discover_sources(sources, pipeline_cfg)
+    sources_failed = sum(1 for outcome in outcomes if outcome.failed)
+    planned_items, dry_run_skipped = _plan_items_to_process(
+        outcomes,
+        dry_run=dry_run,
+        limit=limit,
+    )
+    total_written, process_skipped = _process_planned_items(
+        planned_items,
+        pipeline_cfg=pipeline_cfg,
+        briefings_dir=briefings_dir,
+        transcript_cache_dir=transcript_cache_dir,
+        known_by_channel=known_by_channel,
+    )
+    total_skipped = dry_run_skipped + process_skipped
 
     logger.info(
         "pipeline complete: wrote %d, skipped %d, %d sources failed",
@@ -488,7 +637,7 @@ def run(
         sources_failed,
     )
 
-    if total_written == 0 and sources_failed == total_sources:
+    if total_sources > 0 and total_written == 0 and sources_failed == total_sources:
         return 2  # all sources failed, nothing written
     return 0
 

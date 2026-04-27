@@ -41,6 +41,8 @@ class PipelineConfig(BaseModel):
     transcript_cache_dir: str = "data/transcripts"
     log_dir: str = "logs"
     context_max_chars: int = Field(default=30_000, ge=1)
+    max_discovery_concurrency: int = Field(default=4, ge=1)
+    max_processing_concurrency: int = Field(default=2, ge=1)
     cron: str | None = None
 
     @model_validator(mode="after")
@@ -55,9 +57,9 @@ class ChannelConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    id: str
-    name: str
-    slug: str
+    id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    slug: str = Field(min_length=1)
 
 
 class BlogConfig(BaseModel):
@@ -65,9 +67,9 @@ class BlogConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    blog_id: str
-    name: str
-    slug: str
+    blog_id: str = Field(min_length=1)
+    name: str = Field(min_length=1)
+    slug: str = Field(min_length=1)
 
 
 class AppConfig(BaseModel):

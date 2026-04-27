@@ -8,6 +8,8 @@ Includes the 3 mandatory regression tests from the eng review:
 
 from __future__ import annotations
 
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -43,7 +45,14 @@ def _make_meta(vid: str, slug: str = "shuka", channel_name: str = "슈카월드"
     )
 
 
-def _write_config(tmp_path: Path, channels: list[dict], blogs: list[dict] | None = None) -> Path:
+def _write_config(
+    tmp_path: Path,
+    channels: list[dict],
+    blogs: list[dict] | None = None,
+    *,
+    max_discovery_concurrency: int = 1,
+    max_processing_concurrency: int = 1,
+) -> Path:
     config = {
         "pipeline": {
             "summarizer": {"provider": "gemini", "model": "gemini-2.5-flash", "prompt_version": "v1"},
@@ -51,6 +60,8 @@ def _write_config(tmp_path: Path, channels: list[dict], blogs: list[dict] | None
             "summary_max_chars": 1000,
             "transcript_cache_dir": str(tmp_path / "transcripts"),
             "log_dir": str(tmp_path / "logs"),
+            "max_discovery_concurrency": max_discovery_concurrency,
+            "max_processing_concurrency": max_processing_concurrency,
         },
         "channels": channels,
         "blogs": blogs or [],
@@ -92,8 +103,8 @@ class TestLoadConfig:
             ],
         )
         config = run.load_config(config_path)
-        assert "pipeline" in config
-        assert len(config["channels"]) == 1
+        assert config.pipeline.summarizer.provider == "gemini"
+        assert len(config.channels) == 1
 
     def test_missing_file_raises(self, tmp_path: Path):
         with pytest.raises(FileNotFoundError):
@@ -234,6 +245,75 @@ class TestRunOrchestrator:
 
         exit_code = run.run(config_path=config_path, briefings_dir=briefings_dir)
         assert exit_code == 0
+
+    def test_discovery_can_run_sources_concurrently(self, tmp_path: Path, fake_summarizer, monkeypatch):
+        config_path = _write_config(
+            tmp_path,
+            channels=[
+                {"id": "UCsT0YIqwnpJCM-mx7-gSA4Q", "name": "CH1", "slug": "ch1"},
+                {"id": "UCxxxxxxxxxxxxxxxxxxxxxx", "name": "CH2", "slug": "ch2"},
+            ],
+            max_discovery_concurrency=2,
+        )
+        briefings_dir = tmp_path / "briefings"
+        lock = threading.Lock()
+        release = threading.Event()
+        active = 0
+        max_active = 0
+
+        def discover_side_effect(**kwargs):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+                if max_active == 2:
+                    release.set()
+            release.wait(timeout=1)
+            with lock:
+                active -= 1
+            return []
+
+        monkeypatch.setattr(run, "discover_new_videos", discover_side_effect)
+
+        exit_code = run.run(config_path=config_path, briefings_dir=briefings_dir)
+
+        assert exit_code == 0
+        assert max_active == 2
+
+    def test_processing_can_run_items_concurrently(self, tmp_path: Path, fake_summarizer, monkeypatch):
+        config_path = _write_config(
+            tmp_path,
+            channels=[{"id": "UCsT0YIqwnpJCM-mx7-gSA4Q", "name": "슈카월드", "slug": "shuka"}],
+            max_processing_concurrency=2,
+        )
+        briefings_dir = tmp_path / "briefings"
+        videos = [_make_meta(f"vid{i}XYZ") for i in range(4)]
+        monkeypatch.setattr(run, "discover_new_videos", lambda **kw: videos)
+
+        lock = threading.Lock()
+        release = threading.Event()
+        active = 0
+        max_active = 0
+
+        def process_side_effect(**kwargs):
+            nonlocal active, max_active
+            with lock:
+                active += 1
+                max_active = max(max_active, active)
+                if max_active == 2:
+                    release.set()
+            release.wait(timeout=1)
+            time.sleep(0.01)
+            with lock:
+                active -= 1
+            return object()
+
+        monkeypatch.setattr(run, "process_video", process_side_effect)
+
+        exit_code = run.run(config_path=config_path, briefings_dir=briefings_dir)
+
+        assert exit_code == 0
+        assert max_active == 2
 
     def test_blog_only_config_writes_new_posts(self, tmp_path: Path, fake_summarizer, monkeypatch):
         config_path = _write_config(

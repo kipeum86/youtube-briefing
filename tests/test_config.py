@@ -40,6 +40,8 @@ def test_validate_config_dict_accepts_minimal_valid_config():
     assert config.pipeline.summarizer.output_format == "free"
     assert config.pipeline.summarizer.max_output_tokens == 1600
     assert config.pipeline.summary_headline_max_chars == 24
+    assert config.pipeline.max_discovery_concurrency == 4
+    assert config.pipeline.max_processing_concurrency == 2
 
 
 def test_validate_config_dict_rejects_invalid_output_format():
@@ -56,6 +58,14 @@ def test_validate_config_dict_rejects_invalid_summary_bounds():
     raw["pipeline"]["summary_max_chars"] = 700
 
     with pytest.raises(ValueError, match="summary_max_chars"):
+        validate_config_dict(raw)
+
+
+def test_validate_config_dict_rejects_invalid_concurrency():
+    raw = _valid_config()
+    raw["pipeline"]["max_processing_concurrency"] = 0
+
+    with pytest.raises(ValueError, match="pipeline.max_processing_concurrency"):
         validate_config_dict(raw)
 
 

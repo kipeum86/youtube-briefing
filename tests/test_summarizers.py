@@ -552,6 +552,23 @@ class TestGeminiCallApi:
             s._call_api("fake prompt")
         assert fake_client.models.generate_content.call_count == 3
 
+    def test_transient_backoff_adds_small_jitter(self, monkeypatch):
+        s = GeminiFlashSummarizer(
+            api_key="fake-key",
+            transient_backoff_seconds=4,
+        )
+        monkeypatch.setattr("pipeline.summarizers.gemini_flash.random.uniform", lambda low, high: 0.5)
+
+        assert s._transient_sleep_seconds() == 4.5
+
+    def test_zero_transient_backoff_has_no_jitter(self):
+        s = GeminiFlashSummarizer(
+            api_key="fake-key",
+            transient_backoff_seconds=0,
+        )
+
+        assert s._transient_sleep_seconds() == 0
+
     def test_mocked_auth_failure_raises_permanent(self, monkeypatch):
         s = GeminiFlashSummarizer(api_key="fake-key")
 

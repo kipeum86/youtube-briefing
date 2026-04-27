@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import random
 import time
 from typing import Literal
 
@@ -372,14 +373,15 @@ class GeminiFlashSummarizer(Summarizer):
                     ) from e
                 last_exc = e
                 if attempt + 1 < self.transient_retries:
+                    sleep_seconds = self._transient_sleep_seconds()
                     logger.warning(
-                        "gemini transient failure attempt %d/%d: %s — retrying in %ss",
+                        "gemini transient failure attempt %d/%d: %s — retrying in %.2fs",
                         attempt + 1,
                         self.transient_retries,
                         e,
-                        self.transient_backoff_seconds,
+                        sleep_seconds,
                     )
-                    time.sleep(self.transient_backoff_seconds)
+                    time.sleep(sleep_seconds)
 
         raise TransientSummarizerError(
             f"gemini failed after {self.transient_retries} attempts: {last_exc}"
@@ -437,6 +439,12 @@ class GeminiFlashSummarizer(Summarizer):
             max_chars=self.max_chars,
             headline_max_chars=self.headline_max_chars,
         )
+
+    def _transient_sleep_seconds(self) -> float:
+        if self.transient_backoff_seconds <= 0:
+            return 0
+        jitter = random.uniform(0, min(1.0, self.transient_backoff_seconds * 0.25))
+        return self.transient_backoff_seconds + jitter
 
 
 class _Classified:
