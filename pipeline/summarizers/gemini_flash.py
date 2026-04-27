@@ -21,7 +21,7 @@ import os
 import time
 from typing import Literal
 
-from pipeline.models import VideoMeta
+from pipeline.models import SummarySections, VideoMeta
 from pipeline.summarizers.base import (
     PermanentSummarizerError,
     Summarizer,
@@ -234,6 +234,8 @@ class GeminiFlashSummarizer(Summarizer):
         )
         self._api_key = api_key or os.environ.get("GEMINI_API_KEY", "").strip()
         self._client = None  # lazy init
+        self._last_summary_sections: SummarySections | None = None
+        self._last_structured_summary: str | None = None
 
     def _build_prompt(self, transcript: str, meta: VideoMeta) -> str:
         if self.prompt_version not in {"v1", "v2"}:
@@ -295,17 +297,30 @@ class GeminiFlashSummarizer(Summarizer):
         meta: VideoMeta,
     ) -> str:
         if self.output_format != "json":
+            self._last_summary_sections = None
+            self._last_structured_summary = None
             return raw_response
 
         try:
-            return render_summary_sections(parse_summary_sections(raw_response))
+            sections = parse_summary_sections(raw_response)
+            rendered = render_summary_sections(sections)
+            self._last_summary_sections = SummarySections(**sections)
+            self._last_structured_summary = rendered
+            return rendered
         except ValueError as exc:
             logger.warning(
                 "failed to parse structured Gemini summary, falling back to free-text v2: %s",
                 exc,
             )
+            self._last_summary_sections = None
+            self._last_structured_summary = None
             prompt = self._build_free_text_v2_prompt(transcript, meta)
             return self._call_api_with_model(prompt, self.model, output_format="free")
+
+    def _summary_sections_for_result(self, summary: str) -> SummarySections | None:
+        if self._last_structured_summary == summary:
+            return self._last_summary_sections
+        return None
 
     def _call_api_with_model(
         self,

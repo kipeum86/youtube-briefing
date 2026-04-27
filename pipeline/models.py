@@ -78,13 +78,27 @@ class VideoMeta(BaseModel):
     duration_seconds: int | None = None
 
 
+class SummarySections(BaseModel):
+    """Provider-native structured summary fields.
+
+    Stored alongside the legacy markdown `summary` so older data and consumers
+    keep working while newer structured-output runs can render without parsing
+    prose back into sections.
+    """
+
+    headline: Annotated[str, Field(min_length=1)]
+    thesis: Annotated[str, Field(min_length=1)]
+    evidence: Annotated[str, Field(min_length=1)]
+    implication: Annotated[str, Field(min_length=1)]
+
+
 class Briefing(BaseModel):
     """Complete briefing record — one per file in data/briefings/.
 
     Invariants enforced by cross-field validators:
       - status=OK requires a non-empty summary
       - status=FAILED requires failure_reason to be populated
-      - FAILED briefings leave summary null
+      - FAILED briefings leave summary and summary_sections null
     """
 
     # Identity
@@ -104,6 +118,7 @@ class Briefing(BaseModel):
     # Outcome
     status: BriefingStatus
     summary: str | None = None
+    summary_sections: SummarySections | None = None
     failure_reason: FailureReason | None = None
 
     # Provenance
@@ -133,4 +148,6 @@ class Briefing(BaseModel):
                 raise ValueError("status=failed requires failure_reason to be set")
             if self.summary is not None:
                 raise ValueError("status=failed must have summary=None")
+            if self.summary_sections is not None:
+                raise ValueError("status=failed must have summary_sections=None")
         return self

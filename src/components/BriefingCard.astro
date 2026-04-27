@@ -102,6 +102,13 @@ interface ParsedSummary {
   paragraphs: SummarySegment[][];
 }
 
+interface SummarySections {
+  headline: string;
+  thesis: string;
+  evidence: string;
+  implication: string;
+}
+
 // Section-label paragraphs the model sometimes inserts as their own block.
 // Examples seen in production: "**1. 주제 한 줄**", "**핵심 주장**", "주제: ..."
 const SECTION_LABEL_PATTERNS: RegExp[] = [
@@ -165,17 +172,27 @@ function parseSummary(summary: string): ParsedSummary {
   return { headline, paragraphs };
 }
 
+function parseStructuredSummary(sections: SummarySections): ParsedSummary {
+  const headline = sections.headline.trim() || null;
+  const paragraphs = [sections.thesis, sections.evidence, sections.implication]
+    .map((b) => b.trim())
+    .filter((b) => b.length > 0 && !isSectionLabel(b))
+    .map((b) => parseInlineBold(b))
+    .filter((segs) => segs.length > 0);
+
+  return { headline, paragraphs };
+}
+
 /**
  * Produce the collapsed-card preview text. Operates on the parsed summary so
  * the preview never includes literal `**` or section labels.
  */
-function cleanPreview(summary: string | null): string {
-  if (!summary) return "";
-  const parsed = parseSummary(summary);
+function previewFromParsed(parsed: ParsedSummary): string {
   const firstSegs = parsed.paragraphs[0];
   const first = firstSegs
     ? firstSegs.map((s) => s.text).join("")
     : parsed.headline ?? "";
+  if (!first) return "";
   if (first.length <= 180) return first;
 
   const sliced = first.slice(0, 180);
@@ -192,8 +209,22 @@ function cleanPreview(summary: string | null): string {
   return sliced + "…";
 }
 
+function cleanPreview(
+  summary: string | null,
+  sections: SummarySections | null = null,
+): string {
+  if (sections) return previewFromParsed(parseStructuredSummary(sections));
+  if (!summary) return "";
+  return previewFromParsed(parseSummary(summary));
+}
+
+const structuredSections: SummarySections | null = !isFailed && data.summary_sections
+  ? data.summary_sections
+  : null;
 const parsedSummary: ParsedSummary = !isFailed && data.summary
-  ? parseSummary(data.summary)
+  ? structuredSections
+    ? parseStructuredSummary(structuredSections)
+    : parseSummary(data.summary)
   : { headline: null, paragraphs: [] };
 ---
 
@@ -222,7 +253,7 @@ const parsedSummary: ParsedSummary = !isFailed && data.summary
       </p>
     ) : (
       <>
-        <p class="preview">{cleanPreview(data.summary)}</p>
+        <p class="preview">{cleanPreview(data.summary, structuredSections)}</p>
         <div class="full-summary">
           {parsedSummary.headline && (
             <h3 class="full-summary-headline">{parsedSummary.headline}</h3>

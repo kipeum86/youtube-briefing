@@ -42,9 +42,42 @@
       ],
       "title": "SourceType",
       "type": "string"
+    },
+    "SummarySections": {
+      "description": "Provider-native structured summary fields.\n\nStored alongside the legacy markdown `summary` so older data and consumers\nkeep working while newer structured-output runs can render without parsing\nprose back into sections.",
+      "properties": {
+        "headline": {
+          "minLength": 1,
+          "title": "Headline",
+          "type": "string"
+        },
+        "thesis": {
+          "minLength": 1,
+          "title": "Thesis",
+          "type": "string"
+        },
+        "evidence": {
+          "minLength": 1,
+          "title": "Evidence",
+          "type": "string"
+        },
+        "implication": {
+          "minLength": 1,
+          "title": "Implication",
+          "type": "string"
+        }
+      },
+      "required": [
+        "headline",
+        "thesis",
+        "evidence",
+        "implication"
+      ],
+      "title": "SummarySections",
+      "type": "object"
     }
   },
-  "description": "Complete briefing record — one per file in data/briefings/.\n\nInvariants enforced by cross-field validators:\n  - status=OK requires a non-empty summary\n  - status=FAILED requires failure_reason to be populated\n  - FAILED briefings leave summary null",
+  "description": "Complete briefing record — one per file in data/briefings/.\n\nInvariants enforced by cross-field validators:\n  - status=OK requires a non-empty summary\n  - status=FAILED requires failure_reason to be populated\n  - FAILED briefings leave summary and summary_sections null",
   "properties": {
     "video_id": {
       "maxLength": 20,
@@ -108,6 +141,17 @@
       ],
       "default": null,
       "title": "Summary"
+    },
+    "summary_sections": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/SummarySections"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "failure_reason": {
       "anyOf": [

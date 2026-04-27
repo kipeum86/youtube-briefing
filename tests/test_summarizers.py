@@ -162,6 +162,7 @@ class TestBaseSummarizerPolicy:
         assert isinstance(result, SummarizerResult)
         assert 700 <= len(result.summary) <= 1200
         assert result.provider == "fake"
+        assert result.summary_sections is None
 
     def test_empty_transcript_raises_permanent(self):
         s = FakeSummarizer(responses=[])
@@ -627,6 +628,9 @@ class TestGeminiFullFlow:
         assert result.summary.startswith("**연준 인하 신호**")
         assert result.summary.count("\n\n") == 3
         assert "정책금리 전망" in result.summary
+        assert result.summary_sections is not None
+        assert result.summary_sections.headline == "연준 인하 신호"
+        assert "정책금리 전망" in result.summary_sections.evidence
         assert result.prompt_version == "v2"
 
     def test_structured_json_parse_failure_falls_back_to_free_text_v2(self):
@@ -644,6 +648,7 @@ class TestGeminiFullFlow:
         result = s.summarize("트랜스크립트 " * 100, _make_video_meta())
 
         assert result.summary.startswith("**연준 인하 신호**")
+        assert result.summary_sections is None
         assert fake_client.models.generate_content.call_count == 2
         first_config = fake_client.models.generate_content.call_args_list[0].kwargs["config"]
         second_config = fake_client.models.generate_content.call_args_list[1].kwargs["config"]
@@ -651,3 +656,24 @@ class TestGeminiFullFlow:
         assert second_config.response_mime_type is None
         assert "JSON 객체만 출력" in fake_client.models.generate_content.call_args_list[0].kwargs["contents"]
         assert "위 출력 계약을 지켜 요약만 출력" in fake_client.models.generate_content.call_args_list[1].kwargs["contents"]
+
+    def test_structured_sections_are_dropped_when_repair_changes_summary(self):
+        s = GeminiFlashSummarizer(api_key="fake-key", output_format="json", prompt_version="v2")
+
+        invalid_structured = MagicMock()
+        invalid_structured.text = _structured_summary_json().replace(
+            "정책금리 전망",
+            "**정책금리 전망**",
+            1,
+        )
+        repaired = MagicMock()
+        repaired.text = _korean_summary(900)
+
+        fake_client = MagicMock()
+        fake_client.models.generate_content.side_effect = [invalid_structured, repaired]
+        s._client = fake_client
+
+        result = s.summarize("트랜스크립트 " * 100, _make_video_meta())
+
+        assert result.summary_sections is None
+        assert fake_client.models.generate_content.call_count == 2

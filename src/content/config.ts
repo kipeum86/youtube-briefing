@@ -29,6 +29,13 @@ const failureReason = z.enum([
 
 const discoverySource = z.enum(["rss", "ytdlp_catchup", "naver_blog_rss"]);
 
+const summarySections = z.object({
+  headline: z.string().min(1),
+  thesis: z.string().min(1),
+  evidence: z.string().min(1),
+  implication: z.string().min(1),
+});
+
 const briefingSchema = z.object({
   video_id: z.string().min(5).max(20),
   channel_slug: z.string(),
@@ -42,6 +49,7 @@ const briefingSchema = z.object({
   source_type: sourceType.default("youtube"),
   status: briefingStatus,
   summary: z.string().nullable(),
+  summary_sections: summarySections.nullable().optional(),
   failure_reason: failureReason.nullable(),
   generated_at: z.coerce.date(),
   provider: z.string(),
@@ -84,6 +92,13 @@ const briefing = defineCollection({
           code: z.ZodIssueCode.custom,
           message: "status=failed must have summary=null",
           path: ["summary"],
+        });
+      }
+      if (data.summary_sections != null) {
+        ctx.addIssue({
+          code: z.ZodIssueCode.custom,
+          message: "status=failed must have summary_sections=null",
+          path: ["summary_sections"],
         });
       }
     }

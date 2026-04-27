@@ -13,6 +13,7 @@ from pipeline.models import (
     BriefingStatus,
     DiscoverySource,
     FailureReason,
+    SummarySections,
 )
 from pipeline.writers.json_store import (
     briefing_filename,
@@ -93,6 +94,20 @@ class TestWriteBriefing:
         loaded = Briefing.model_validate_json(path.read_text(encoding="utf-8"))
         assert loaded.video_id == b.video_id
         assert loaded.summary == b.summary
+
+    def test_write_ok_briefing_round_trips_summary_sections(self, tmp_path: Path):
+        sections = SummarySections(
+            headline="연준 인하 신호",
+            thesis="핵심 주장이 들어간 단락입니다.",
+            evidence="근거와 숫자가 들어간 단락입니다.",
+            implication="함의와 관전 포인트가 들어간 단락입니다.",
+        )
+        b = _make_ok_briefing(summary_sections=sections)
+
+        path = write_briefing(b, tmp_path)
+        loaded = Briefing.model_validate_json(path.read_text(encoding="utf-8"))
+
+        assert loaded.summary_sections == sections
 
     def test_write_failed_briefing(self, tmp_path: Path):
         b = _make_failed_briefing()

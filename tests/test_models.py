@@ -16,6 +16,7 @@ from pipeline.models import (
     BriefingStatus,
     DiscoverySource,
     FailureReason,
+    SummarySections,
     VideoMeta,
 )
 
@@ -49,6 +50,16 @@ class TestBriefingHappyPath:
         assert b.status == BriefingStatus.OK
         assert b.summary is not None
         assert b.failure_reason is None
+
+    def test_valid_ok_briefing_accepts_summary_sections(self):
+        sections = SummarySections(
+            headline="연준 인하 신호",
+            thesis="핵심 주장이 들어간 단락입니다.",
+            evidence="근거와 숫자가 들어간 단락입니다.",
+            implication="함의와 관전 포인트가 들어간 단락입니다.",
+        )
+        b = Briefing(**_minimal_briefing_kwargs(summary_sections=sections))
+        assert b.summary_sections == sections
 
     def test_valid_failed_briefing_constructs(self):
         b = Briefing(
@@ -97,6 +108,22 @@ class TestBriefingInvariants:
                     status=BriefingStatus.FAILED,
                     failure_reason=FailureReason.VIDEO_REMOVED,
                     # summary stays default from _minimal_briefing_kwargs (populated)
+                )
+            )
+
+    def test_failed_status_rejects_summary_sections(self):
+        with pytest.raises(ValidationError, match="summary_sections=None"):
+            Briefing(
+                **_minimal_briefing_kwargs(
+                    status=BriefingStatus.FAILED,
+                    summary=None,
+                    failure_reason=FailureReason.VIDEO_REMOVED,
+                    summary_sections={
+                        "headline": "연준 인하 신호",
+                        "thesis": "핵심 주장이 들어간 단락입니다.",
+                        "evidence": "근거와 숫자가 들어간 단락입니다.",
+                        "implication": "함의와 관전 포인트가 들어간 단락입니다.",
+                    },
                 )
             )
 

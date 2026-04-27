@@ -49,6 +49,7 @@ from pipeline.models import (
     BriefingStatus,
     FailureReason,
     SourceType,
+    SummarySections,
     VideoMeta,
 )
 from pipeline.summarizers.base import (
@@ -118,6 +119,7 @@ def build_briefing_from_success(
     provider: str,
     model: str,
     prompt_version: str,
+    summary_sections: SummarySections | None = None,
 ) -> Briefing:
     """Construct an ok-status Briefing from a successful summarize."""
     return Briefing(
@@ -133,6 +135,7 @@ def build_briefing_from_success(
         source_type=meta.source_type,
         status=BriefingStatus.OK,
         summary=summary,
+        summary_sections=summary_sections,
         failure_reason=None,
         generated_at=datetime.now(timezone.utc),
         provider=provider,
@@ -256,6 +259,7 @@ def process_video(
         provider=result.provider,
         model=result.model,
         prompt_version=result.prompt_version,
+        summary_sections=result.summary_sections,
     )
     write_briefing(briefing, briefings_dir)
     return briefing

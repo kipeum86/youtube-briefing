@@ -15,7 +15,7 @@ import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
-from pipeline.models import VideoMeta
+from pipeline.models import SummarySections, VideoMeta
 from pipeline.summarizers.summary_contract import (
     ParsedSummary,
     SummaryContract,
@@ -72,6 +72,7 @@ class SummarizerResult:
     provider: str
     model: str
     prompt_version: str
+    summary_sections: SummarySections | None = None
 
 
 class Summarizer(ABC):
@@ -234,7 +235,12 @@ class Summarizer(ABC):
             provider=self.provider,
             model=self.model,
             prompt_version=self.prompt_version,
+            summary_sections=self._summary_sections_for_result(summary),
         )
+
+    def _summary_sections_for_result(self, summary: str) -> SummarySections | None:
+        """Return structured sections for the final summary, when available."""
+        return None
 
     def _effective_full_retry_limit(self) -> int:
         # max_retries_on_short is retained for compatibility with existing
