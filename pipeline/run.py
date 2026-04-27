@@ -291,10 +291,27 @@ def run(
         provider=summarizer_cfg["provider"],
         model=summarizer_cfg["model"],
         prompt_version=summarizer_cfg.get("prompt_version", "v1"),
+        repair_model=summarizer_cfg.get("repair_model"),
+        output_format=summarizer_cfg.get("output_format", "free"),
+        temperature=summarizer_cfg.get("temperature"),
+        max_output_tokens=summarizer_cfg.get("max_output_tokens", 1600),
+        request_timeout_seconds=summarizer_cfg.get("request_timeout_seconds", 90),
+        transient_retries=summarizer_cfg.get(
+            "transient_retries",
+            pipeline_cfg.get("retry_max_attempts", 2),
+        ),
+        transient_backoff_seconds=summarizer_cfg.get(
+            "transient_backoff_seconds",
+            pipeline_cfg.get("retry_backoff_seconds", 5),
+        ),
     )
     # Apply length constraints from config
     summarizer.min_chars = pipeline_cfg.get("summary_min_chars", 700)
     summarizer.max_chars = pipeline_cfg.get("summary_max_chars", 1200)
+    summarizer.headline_max_chars = pipeline_cfg.get("summary_headline_max_chars", 24)
+    summarizer.max_retries_on_short = summarizer_cfg.get("short_output_retries", 1)
+    summarizer.max_format_repair_attempts = summarizer_cfg.get("repair_attempts", 1)
+    summarizer.max_full_retries = summarizer_cfg.get("full_retries", 1)
 
     # Per-source discovery cap — how many NEW items per source per run
     max_per_channel = pipeline_cfg.get("max_new_videos_per_channel", 10)

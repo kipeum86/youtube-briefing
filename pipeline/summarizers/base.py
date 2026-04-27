@@ -330,6 +330,12 @@ def load_summarizer(
     model: str,
     prompt_version: str = "v1",
     repair_model: str | None = None,
+    output_format: str = "free",
+    temperature: float | None = None,
+    max_output_tokens: int | None = 1600,
+    request_timeout_seconds: float | None = 90,
+    transient_retries: int = 2,
+    transient_backoff_seconds: float = 5,
 ) -> Summarizer:
     """Factory: load the right Summarizer subclass by provider name.
 
@@ -346,6 +352,12 @@ def load_summarizer(
             model=model,
             prompt_version=prompt_version,
             repair_model=repair_model,
+            output_format=output_format,
+            temperature=temperature,
+            max_output_tokens=max_output_tokens,
+            request_timeout_seconds=request_timeout_seconds,
+            transient_retries=transient_retries,
+            transient_backoff_seconds=transient_backoff_seconds,
         )
 
     raise ValueError(

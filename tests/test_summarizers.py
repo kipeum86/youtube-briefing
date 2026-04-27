@@ -304,6 +304,29 @@ class TestLoadSummarizer:
         assert isinstance(s, GeminiFlashSummarizer)
         assert s.model == "gemini-2.5-flash"
 
+    def test_load_gemini_with_runtime_options(self):
+        s = load_summarizer(
+            "gemini",
+            "gemini-2.5-flash",
+            "v2",
+            repair_model="gemini-repair",
+            output_format="free",
+            temperature=0.2,
+            max_output_tokens=1400,
+            request_timeout_seconds=45,
+            transient_retries=3,
+            transient_backoff_seconds=1.5,
+        )
+
+        assert isinstance(s, GeminiFlashSummarizer)
+        assert s.prompt_version == "v2"
+        assert s.repair_model == "gemini-repair"
+        assert s.temperature == 0.2
+        assert s.max_output_tokens == 1400
+        assert s.request_timeout_seconds == 45
+        assert s.transient_retries == 3
+        assert s.transient_backoff_seconds == 1.5
+
     def test_unknown_provider_raises(self):
         with pytest.raises(ValueError, match="unknown summarizer provider"):
             load_summarizer("openai", "gpt-5", "v1")
@@ -399,9 +422,48 @@ class TestGeminiCallApi:
         # _call_api returns the raw response, no truncation at this layer
         assert result == expected_text
 
+    def test_generation_config_is_passed_to_gemini(self):
+        s = GeminiFlashSummarizer(
+            api_key="fake-key",
+            temperature=0.2,
+            max_output_tokens=1400,
+            output_format="json",
+        )
+
+        fake_response = MagicMock()
+        fake_response.text = _korean_summary(900)
+
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = fake_response
+        s._client = fake_client
+
+        s._call_api("fake prompt")
+
+        config = fake_client.models.generate_content.call_args.kwargs["config"]
+        assert config.temperature == 0.2
+        assert config.max_output_tokens == 1400
+        assert config.response_mime_type == "application/json"
+
+    def test_timeout_seconds_convert_to_http_options_milliseconds(self):
+        s = GeminiFlashSummarizer(api_key="fake-key", request_timeout_seconds=90)
+        http_options = s._build_http_options()
+        assert http_options.timeout == 90_000
+
+    def test_temperature_none_leaves_sdk_default_unset(self):
+        s = GeminiFlashSummarizer(
+            api_key="fake-key",
+            temperature=None,
+            max_output_tokens=None,
+        )
+        assert s._build_generation_config() is None
+
+    def test_invalid_output_format_raises(self):
+        with pytest.raises(ValueError, match="unknown Gemini output_format"):
+            GeminiFlashSummarizer(api_key="fake-key", output_format="xml")
+
     def test_mocked_transient_then_success(self, monkeypatch):
         """First call raises 429, second succeeds."""
-        s = GeminiFlashSummarizer(api_key="fake-key")
+        s = GeminiFlashSummarizer(api_key="fake-key", transient_backoff_seconds=0)
 
         # Avoid the 5s sleep in test
         monkeypatch.setattr("pipeline.summarizers.gemini_flash.time.sleep", lambda _: None)
@@ -422,7 +484,7 @@ class TestGeminiCallApi:
         assert fake_client.models.generate_content.call_count == 2
 
     def test_mocked_persistent_transient_raises(self, monkeypatch):
-        s = GeminiFlashSummarizer(api_key="fake-key")
+        s = GeminiFlashSummarizer(api_key="fake-key", transient_retries=3)
         monkeypatch.setattr("pipeline.summarizers.gemini_flash.time.sleep", lambda _: None)
 
         fake_client = MagicMock()
@@ -431,6 +493,7 @@ class TestGeminiCallApi:
 
         with pytest.raises(TransientSummarizerError):
             s._call_api("fake prompt")
+        assert fake_client.models.generate_content.call_count == 3
 
     def test_mocked_auth_failure_raises_permanent(self, monkeypatch):
         s = GeminiFlashSummarizer(api_key="fake-key")

@@ -10,7 +10,7 @@ Uses google-genai SDK. The prompts are Korean-native and enforce the
 
 Retry policy: delegated to the parent Summarizer.summarize() loop for
 contract repair/full retries. Network/5xx retries are handled inside
-_call_api via two attempts with 5s backoff (transient classification).
+_call_api with configurable attempts/backoff (transient classification).
 """
 
 from __future__ import annotations
@@ -18,6 +18,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from typing import Literal
 
 from pipeline.models import VideoMeta
 from pipeline.summarizers.base import (
@@ -174,10 +175,27 @@ class GeminiFlashSummarizer(Summarizer):
         model: str = "gemini-2.5-flash",
         prompt_version: str = "v1",
         repair_model: str | None = None,
+        output_format: Literal["free", "json"] = "free",
+        temperature: float | None = None,
+        max_output_tokens: int | None = 1600,
+        request_timeout_seconds: float | None = 90,
+        transient_retries: int = 2,
+        transient_backoff_seconds: float = 5,
         api_key: str | None = None,
     ):
+        if output_format not in {"free", "json"}:
+            raise ValueError(f"unknown Gemini output_format: {output_format}")
+        if transient_retries < 1:
+            raise ValueError("transient_retries must be >= 1")
+
         self.model = model
         self.repair_model = repair_model
+        self.output_format = output_format
+        self.temperature = temperature
+        self.max_output_tokens = max_output_tokens
+        self.request_timeout_seconds = request_timeout_seconds
+        self.transient_retries = transient_retries
+        self.transient_backoff_seconds = transient_backoff_seconds
         self.prompt_version = (
             os.environ.get("PROMPT_VERSION_OVERRIDE", prompt_version).strip()
             or prompt_version
@@ -224,7 +242,7 @@ class GeminiFlashSummarizer(Summarizer):
         return self._call_api_with_model(prompt, self.repair_model or self.model)
 
     def _call_api_with_model(self, prompt: str, model: str) -> str:
-        """Call the Gemini API with 2-attempt retry on transient failures.
+        """Call the Gemini API with configured retry on transient failures.
 
         Transient: network errors, 429, 5xx
         Permanent: 401, 403, invalid request
@@ -238,12 +256,17 @@ class GeminiFlashSummarizer(Summarizer):
         client = self._get_client()
 
         last_exc: Exception | None = None
-        for attempt in range(2):
+        for attempt in range(self.transient_retries):
             try:
-                response = client.models.generate_content(
-                    model=model,
-                    contents=prompt,
-                )
+                request = {
+                    "model": model,
+                    "contents": prompt,
+                }
+                generation_config = self._build_generation_config()
+                if generation_config is not None:
+                    request["config"] = generation_config
+
+                response = client.models.generate_content(**request)
                 text = getattr(response, "text", None) or ""
                 if text.strip():
                     return text
@@ -262,15 +285,18 @@ class GeminiFlashSummarizer(Summarizer):
                         failure_code=classified.failure_code,
                     ) from e
                 last_exc = e
-                logger.warning(
-                    "gemini transient failure attempt %d: %s — retrying in 5s",
-                    attempt + 1,
-                    e,
-                )
-                time.sleep(5)
+                if attempt + 1 < self.transient_retries:
+                    logger.warning(
+                        "gemini transient failure attempt %d/%d: %s — retrying in %ss",
+                        attempt + 1,
+                        self.transient_retries,
+                        e,
+                        self.transient_backoff_seconds,
+                    )
+                    time.sleep(self.transient_backoff_seconds)
 
         raise TransientSummarizerError(
-            f"gemini failed after 2 attempts: {last_exc}"
+            f"gemini failed after {self.transient_retries} attempts: {last_exc}"
         ) from last_exc
 
     def _get_client(self):
@@ -283,8 +309,33 @@ class GeminiFlashSummarizer(Summarizer):
                 "google-genai library not installed",
                 failure_code="summarizer_refused",
             ) from e
-        self._client = genai.Client(api_key=self._api_key)
+        self._client = genai.Client(
+            api_key=self._api_key,
+            http_options=self._build_http_options(),
+        )
         return self._client
+
+    def _build_http_options(self):
+        if self.request_timeout_seconds is None:
+            return None
+        from google.genai import types
+
+        return types.HttpOptions(timeout=int(self.request_timeout_seconds * 1000))
+
+    def _build_generation_config(self):
+        from google.genai import types
+
+        config: dict[str, object] = {}
+        if self.temperature is not None:
+            config["temperature"] = self.temperature
+        if self.max_output_tokens is not None:
+            config["maxOutputTokens"] = self.max_output_tokens
+        if self.output_format == "json":
+            config["responseMimeType"] = "application/json"
+
+        if not config:
+            return None
+        return types.GenerateContentConfig(**config)
 
 
 class _Classified:
