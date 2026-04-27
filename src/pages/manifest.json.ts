@@ -23,7 +23,14 @@ export const GET: APIRoute = async () => {
     (entry: BriefingEntry) => entry.data.status === "ok",
   );
 
-  // Newest first
+  const updatedAt = all.length > 0
+    ? new Date(
+        Math.max(...all.map((entry: BriefingEntry) => entry.data.generated_at.getTime())),
+      ).toISOString()
+    : new Date().toISOString();
+
+  // Latest published first. This is intentionally separate from updated_at:
+  // a backfilled item can be generated today while not being the latest source.
   all.sort(
     (a: BriefingEntry, b: BriefingEntry) =>
       b.data.published_at.getTime() - a.data.published_at.getTime(),
@@ -44,7 +51,7 @@ export const GET: APIRoute = async () => {
     accent: "#2d4a3e",
     description: "한국 유튜브 채널 + 메르 블로그 · 주 3회 심층 요약",
     url: SITE_URL,
-    updated_at: latest?.published_at ?? new Date().toISOString(),
+    updated_at: updatedAt,
     latest,
     items,
   };
