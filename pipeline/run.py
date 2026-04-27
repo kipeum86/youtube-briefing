@@ -310,6 +310,7 @@ def run(
     summarizer.max_retries_on_short = summarizer_cfg.get("short_output_retries", 1)
     summarizer.max_format_repair_attempts = summarizer_cfg.get("repair_attempts", 1)
     summarizer.max_full_retries = summarizer_cfg.get("full_retries", 1)
+    summarizer.context_max_chars = pipeline_cfg.get("context_max_chars", 30_000)
 
     # Per-source discovery cap — how many NEW items per source per run
     max_per_channel = pipeline_cfg.get("max_new_videos_per_channel", 10)

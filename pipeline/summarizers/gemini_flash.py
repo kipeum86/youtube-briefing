@@ -26,6 +26,7 @@ from pipeline.summarizers.base import (
     Summarizer,
     TransientSummarizerError,
 )
+from pipeline.summarizers.context_builder import build_summary_context
 from pipeline.summarizers.summary_contract import (
     SummaryContract,
     SummaryValidationIssue,
@@ -209,9 +210,18 @@ class GeminiFlashSummarizer(Summarizer):
                 f"unknown prompt_version for GeminiFlashSummarizer: {self.prompt_version}"
             )
 
+        context = build_summary_context(transcript, max_chars=self.context_max_chars)
+        if context.strategy != "full":
+            logger.info(
+                "summary context reduced from %d to %d chars via %s",
+                context.original_chars,
+                context.included_chars,
+                context.strategy,
+            )
+
         values = {
             "source_context": _source_context(meta),
-            "transcript": _cap_transcript(transcript),
+            "transcript": context.text,
             "min_chars": self.min_chars,
             "max_chars": self.max_chars,
             "headline_max_chars": self.headline_max_chars,
@@ -375,8 +385,3 @@ def _source_context(meta: VideoMeta) -> str:
         return f'네이버 블로그 "{meta.channel_name}"의 글 "{meta.title}"'
     return f'유튜브 채널 "{meta.channel_name}"의 영상 "{meta.title}"'
 
-
-def _cap_transcript(transcript: str) -> str:
-    # Cap the transcript portion of the prompt so we stay well under
-    # Gemini Flash's input context. Long videos can exceed 100K chars.
-    return transcript if len(transcript) < 80_000 else transcript[:80_000]

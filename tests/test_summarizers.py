@@ -346,7 +346,19 @@ class TestGeminiFlashPromptBuild:
         long_text = "가" * 100_000
         prompt = s._build_prompt(long_text, _make_video_meta())
         # Prompt includes the template + capped transcript
-        assert len(prompt) < 90_000
+        assert len(prompt) < 40_000
+
+    def test_context_max_chars_controls_transcript_budget(self):
+        s = GeminiFlashSummarizer(api_key="fake-key", prompt_version="v2")
+        s.context_max_chars = 1_000
+        long_text = "\n".join(f"라인 {i} " + "가" * 80 for i in range(200))
+
+        prompt = s._build_prompt(long_text, _make_video_meta())
+
+        source_text = prompt.rsplit("<source>", 1)[1].split("</source>", 1)[0].strip()
+        assert len(source_text) <= 1_000
+        assert "라인 0" in source_text
+        assert "라인 199" in source_text
 
     def test_unknown_prompt_version_raises(self):
         s = GeminiFlashSummarizer(api_key="fake-key", prompt_version="v99")

@@ -27,6 +27,7 @@ pipeline:
   summary_min_chars: 700
   summary_max_chars: 1200
   summary_headline_max_chars: 24
+  context_max_chars: 30000
 
   # Per-channel discovery cap: how many NEW videos per channel per run.
   # YouTube's RSS feed returns ~15 items; we cap below that so a single

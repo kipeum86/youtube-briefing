@@ -100,6 +100,7 @@ class Summarizer(ABC):
     max_retries_on_short: int = 1
     max_format_repair_attempts: int = 1
     max_full_retries: int = 1
+    context_max_chars: int = 30_000
 
     def summarize(self, transcript: str, meta: VideoMeta) -> SummarizerResult:
         """Produce a Korean deep-analysis summary of the transcript.
