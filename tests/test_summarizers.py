@@ -27,6 +27,8 @@ from pipeline.summarizers.base import (
 from pipeline.summarizers.gemini_flash import (
     GeminiFlashSummarizer,
     _classify_gemini_exception,
+    parse_summary_sections,
+    render_summary_sections,
 )
 from pipeline.summarizers.summary_contract import (
     SummaryContract,
@@ -91,6 +93,17 @@ def _summary_with_two_body_blocks(length: int = 900) -> str:
         summary = _render_summary("연준 인하 신호", paragraphs)
         i += 1
     return summary
+
+
+def _structured_summary_json() -> str:
+    return """
+{
+  "headline": "연준 인하 신호",
+  "thesis": "파월 의장의 발언은 단순한 금리 인하 신호가 아니라 시장 기대와 정책 제약이 동시에 드러난 사건으로 해석된다. 시장은 완화 가능성을 먼저 반영했지만 장기 금리의 움직임은 물가 기대가 쉽게 꺾이지 않는다는 점을 보여준다. 원문은 이 충돌을 통해 중앙은행 메시지와 금융시장 가격이 서로 영향을 주고받는 구조를 강조한다. 특히 인하 신호가 위험자산 선호를 자극하면 정책 완화의 의도와 다른 결과가 나타날 수 있다는 점을 핵심 논지로 제시한다.",
+  "evidence": "근거로는 정책금리 전망, 10년물 국채금리, 달러 인덱스의 엇갈린 움직임이 제시된다. 정책금리 전망이 낮아졌는데도 장기 금리가 반등했다는 점은 투자자들이 단순한 완화보다 인플레이션 재가속 가능성을 가격에 넣고 있음을 뜻한다. 과거 연착륙 국면에서도 인하 기대가 빠르게 커진 뒤 중앙은행이 다시 신중한 태도로 돌아선 사례가 있었다. 이러한 지표 조합은 시장이 기준금리 경로뿐 아니라 성장률, 물가, 재정 여건까지 함께 재평가하고 있음을 보여준다.",
+  "implication": "따라서 이번 국면은 기준금리 인하 여부 하나로 판단하기 어렵다. 다음 관전 포인트는 물가 지표와 점도표 변화, 그리고 장기 금리가 완화 신호를 얼마나 받아들이는지다. 투자자는 단기적인 낙관보다 금리와 달러, 주식시장이 같은 방향으로 움직이는지 확인해야 하며, 정책 기대가 과도하게 앞서갈 때 생기는 변동성에도 대비해야 한다. 결국 시장의 확신이 강해질수록 작은 지표 변화가 가격을 크게 흔들 수 있다."
+}
+""".strip()
 
 
 class FakeSummarizer(Summarizer):
@@ -385,6 +398,36 @@ class TestGeminiFlashPromptBuild:
         s = GeminiFlashSummarizer(api_key="fake-key", prompt_version="v1")
         assert s.prompt_version == "v2"
 
+    def test_json_prompt_requests_structured_sections(self):
+        s = GeminiFlashSummarizer(
+            api_key="fake-key",
+            prompt_version="v2",
+            output_format="json",
+        )
+
+        prompt = s._build_prompt("테스트 트랜스크립트 내용 " * 20, _make_video_meta())
+
+        assert "반드시 JSON 객체 하나만 출력한다" in prompt
+        assert "headline" in prompt
+        assert "thesis" in prompt
+        assert "evidence" in prompt
+        assert "implication" in prompt
+        assert "<source>" in prompt
+
+
+class TestGeminiStructuredOutput:
+    def test_parse_and_render_summary_sections(self):
+        sections = parse_summary_sections("```json\n" + _structured_summary_json() + "\n```")
+        rendered = render_summary_sections(sections)
+
+        assert rendered.startswith("**연준 인하 신호**")
+        assert rendered.count("\n\n") == 3
+        assert "정책금리 전망" in rendered
+
+    def test_parse_summary_sections_rejects_missing_fields(self):
+        with pytest.raises(ValueError, match="implication"):
+            parse_summary_sections('{"headline":"제목","thesis":"본문","evidence":"근거"}')
+
 
 class TestGeminiClassification:
     def test_429_is_transient(self):
@@ -455,6 +498,7 @@ class TestGeminiCallApi:
         assert config.temperature == 0.2
         assert config.max_output_tokens == 1400
         assert config.response_mime_type == "application/json"
+        assert config.response_schema is not None
 
     def test_timeout_seconds_convert_to_http_options_milliseconds(self):
         s = GeminiFlashSummarizer(api_key="fake-key", request_timeout_seconds=90)
@@ -521,6 +565,7 @@ class TestGeminiCallApi:
         s = GeminiFlashSummarizer(
             api_key="fake-key",
             repair_model="gemini-repair-model",
+            output_format="json",
         )
 
         fake_response = MagicMock()
@@ -541,6 +586,7 @@ class TestGeminiCallApi:
         repair_prompt = call_kwargs["contents"]
         assert result == fake_response.text
         assert call_kwargs["model"] == "gemini-repair-model"
+        assert call_kwargs["config"].response_mime_type is None
         assert "<summary>" in repair_prompt
         assert "body_bold" in repair_prompt
         assert "원문:" not in repair_prompt
@@ -565,3 +611,43 @@ class TestGeminiFullFlow:
         assert result.provider == "gemini"
         assert result.model == "gemini-2.5-flash"
         assert result.prompt_version == "v1"
+
+    def test_structured_json_response_renders_legacy_markdown(self):
+        s = GeminiFlashSummarizer(api_key="fake-key", output_format="json", prompt_version="v2")
+
+        fake_response = MagicMock()
+        fake_response.text = _structured_summary_json()
+
+        fake_client = MagicMock()
+        fake_client.models.generate_content.return_value = fake_response
+        s._client = fake_client
+
+        result = s.summarize("트랜스크립트 " * 100, _make_video_meta())
+
+        assert result.summary.startswith("**연준 인하 신호**")
+        assert result.summary.count("\n\n") == 3
+        assert "정책금리 전망" in result.summary
+        assert result.prompt_version == "v2"
+
+    def test_structured_json_parse_failure_falls_back_to_free_text_v2(self):
+        s = GeminiFlashSummarizer(api_key="fake-key", output_format="json", prompt_version="v2")
+
+        invalid_json = MagicMock()
+        invalid_json.text = "{not json"
+        fallback = MagicMock()
+        fallback.text = _korean_summary(900)
+
+        fake_client = MagicMock()
+        fake_client.models.generate_content.side_effect = [invalid_json, fallback]
+        s._client = fake_client
+
+        result = s.summarize("트랜스크립트 " * 100, _make_video_meta())
+
+        assert result.summary.startswith("**연준 인하 신호**")
+        assert fake_client.models.generate_content.call_count == 2
+        first_config = fake_client.models.generate_content.call_args_list[0].kwargs["config"]
+        second_config = fake_client.models.generate_content.call_args_list[1].kwargs["config"]
+        assert first_config.response_mime_type == "application/json"
+        assert second_config.response_mime_type is None
+        assert "JSON 객체만 출력" in fake_client.models.generate_content.call_args_list[0].kwargs["contents"]
+        assert "위 출력 계약을 지켜 요약만 출력" in fake_client.models.generate_content.call_args_list[1].kwargs["contents"]

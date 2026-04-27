@@ -131,9 +131,9 @@ class Summarizer(ABC):
 
         while True:
             raw = self._call_api(prompt)
-            self._validate_language(raw)
+            summary = self._normalize_response(raw, transcript, meta).strip()
+            self._validate_language(summary)
 
-            summary = raw.strip()
             retry_summary = summary
             issues = validate_summary_contract(summary, contract)
             if not issues:
@@ -207,6 +207,15 @@ class Summarizer(ABC):
             "summary repair is not implemented for this summarizer",
             failure_code="summarizer_refused",
         )
+
+    def _normalize_response(
+        self,
+        raw_response: str,
+        transcript: str,
+        meta: VideoMeta,
+    ) -> str:
+        """Convert provider-native output into the legacy markdown summary."""
+        return raw_response
 
     # ------------------------------------------------------------------
     # Shared validation helpers
