@@ -235,6 +235,25 @@ def test_select_targets_can_sort_by_published_at_not_filename(tmp_path: Path):
     ]
 
 
+def test_select_targets_honors_only_ids(tmp_path: Path):
+    briefings_dir = tmp_path / "briefings"
+    transcripts_dir = tmp_path / "transcripts"
+    first = _make_ok_briefing(video_id="first12345", slug="shuka")
+    second = _make_ok_briefing(video_id="second1234", slug="understanding")
+    write_briefing(first, briefings_dir)
+    write_briefing(second, briefings_dir)
+    _write_transcript(transcripts_dir, first.video_id)
+    _write_transcript(transcripts_dir, second.video_id)
+
+    selection = _select(
+        briefings_dir,
+        transcripts_dir,
+        only_ids={second.video_id},
+    )
+
+    assert [target.briefing.video_id for target in selection.targets] == [second.video_id]
+
+
 def test_fetch_missing_naver_blog_text_is_cached_and_resummarized(
     tmp_path: Path,
     monkeypatch,

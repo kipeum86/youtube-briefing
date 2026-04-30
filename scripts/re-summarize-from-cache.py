@@ -76,6 +76,7 @@ def main() -> int:
         transcript_cache_dir=transcript_cache_dir,
         status_filter=args.status,
         only_channel=args.only_channel,
+        only_ids=set(args.only_id or []),
         limit=args.limit,
         sort_key=args.sort_key,
         fetch_missing=args.fetch_missing,
@@ -120,6 +121,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--prompt-version", help="Override config pipeline.summarizer.prompt_version.")
     parser.add_argument("--only-channel", help="Only re-summarize one channel_slug.")
+    parser.add_argument(
+        "--only-id",
+        action="append",
+        help="Only re-summarize a specific video/post id. May be repeated.",
+    )
     parser.add_argument("--limit", type=int, help="Maximum number of cached items to process.")
     parser.add_argument(
         "--sort",
@@ -190,6 +196,7 @@ def select_targets(
     transcript_cache_dir: Path,
     status_filter: str = "ok",
     only_channel: str | None = None,
+    only_ids: set[str] | None = None,
     limit: int | None = None,
     sort_key: str = "filename",
     fetch_missing: bool = False,
@@ -198,6 +205,7 @@ def select_targets(
     skipped_status = 0
     skipped_channel = 0
     skipped_missing_cache = 0
+    only_ids = only_ids or set()
 
     entries: list[tuple[Path, Briefing]] = []
     for path in sorted(briefings_dir.glob("*.json"), reverse=True):
@@ -215,6 +223,9 @@ def select_targets(
             skipped_status += 1
             continue
         if only_channel and briefing.channel_slug != only_channel:
+            skipped_channel += 1
+            continue
+        if only_ids and briefing.video_id not in only_ids:
             skipped_channel += 1
             continue
 
