@@ -30,7 +30,7 @@ test.describe("index page", () => {
     // Brand mark
     await expect(page.locator(".masthead .mark")).toHaveText("YOUTUBE BRIEFING");
     await expect(page.locator(".masthead .updated-line")).toHaveText(
-      "마지막 업데이트 · 2026.04.28 06:15 KST",
+      /^마지막 업데이트 · \d{4}\.\d{2}\.\d{2} \d{2}:\d{2} KST$/,
     );
 
     // Top tabs
