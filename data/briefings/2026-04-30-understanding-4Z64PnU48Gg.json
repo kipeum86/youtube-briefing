@@ -1,0 +1,20 @@
+{
+  "video_id": "4Z64PnU48Gg",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "사우디 등 돌린 UAE, OPEC 균열 시작됐다 (문병준 전 사우디 대사대리) ※2026년 4월 29일 방송",
+  "published_at": "2026-04-30T07:55:00Z",
+  "video_url": "https://www.youtube.com/watch?v=4Z64PnU48Gg",
+  "thumbnail_url": "https://i.ytimg.com/vi/4Z64PnU48Gg/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-04-30T21:46:25.674072Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

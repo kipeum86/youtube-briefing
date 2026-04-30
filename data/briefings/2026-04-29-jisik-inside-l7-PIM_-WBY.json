@@ -1,0 +1,20 @@
+{
+  "video_id": "l7-PIM_-WBY",
+  "channel_slug": "jisik-inside",
+  "channel_name": "지식 인사이드",
+  "title": "검사 결과는 '정상'인데 온몸이 아픈 사람들의 공통점 (김현아 교수)",
+  "published_at": "2026-04-29T10:01:16Z",
+  "video_url": "https://www.youtube.com/watch?v=l7-PIM_-WBY",
+  "thumbnail_url": "https://i.ytimg.com/vi/l7-PIM_-WBY/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-04-30T21:48:53.200201Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

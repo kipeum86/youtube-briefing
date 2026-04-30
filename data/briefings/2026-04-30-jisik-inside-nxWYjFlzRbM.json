@@ -1,0 +1,20 @@
+{
+  "video_id": "nxWYjFlzRbM",
+  "channel_slug": "jisik-inside",
+  "channel_name": "지식 인사이드",
+  "title": "\"좋은 집의 기준 바뀐다\" 미래의 집값을 가르는 결정적 차이ㅣ지식인초대석: 합석 EP.2 (김대식 X 유현준)",
+  "published_at": "2026-04-30T11:08:54Z",
+  "video_url": "https://www.youtube.com/watch?v=nxWYjFlzRbM",
+  "thumbnail_url": "https://i.ytimg.com/vi/nxWYjFlzRbM/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-04-30T21:48:44.628997Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

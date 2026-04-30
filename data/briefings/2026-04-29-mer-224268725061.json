@@ -1,0 +1,20 @@
+{
+  "video_id": "224268725061",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "UAE가 OPEC 탈퇴를 선언한 배경과 앞으로 여파는?",
+  "published_at": "2026-04-28T22:20:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224268725061",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA0MjlfMjE1/MDAxNzc3NDEwNDc3MDUy.nLvDtE3GqhtUy9NmAIl-DitIzQne849rR0QSEPs8RV0g.AyuW9SHio8IGl3cv8AauAVcCg_kbp3AvlDkftHXw_9wg.JPEG/qj4vnqb8.JPG?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-04-30T21:50:41.888892Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}
