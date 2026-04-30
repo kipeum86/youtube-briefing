@@ -7,7 +7,7 @@ _Auto-summarized Korean economics & current-affairs YouTube plus selected Naver 
 **TL;DR (English).** A personal tool that watches 5 Korean YouTube channels
 (박종훈, 슈카월드, 언더스탠딩, 지식인사이드, 지구본연구소) plus Mer's Naver
 blog (메르의 네이버 블로그), extracts transcripts / blog post text,
-generates 700–1,200-character Korean deep-analysis summaries with Gemini Flash,
+generates 1,200–1,800-character Korean deep-analysis summaries with Gemini 3 Flash,
 and publishes them as a static Astro site on GitHub Pages. Updates Mon/Wed/Fri
 at 06:00 KST via GitHub Actions. No database, no Sheets, no Google Cloud.
 Fork-friendly: clone, add your Gemini API key, edit the source list, run the
@@ -42,7 +42,7 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 
 바쁠 때 경제·시사 유튜브와 블로그를 다 보기 어려워서 만든 개인용 브리핑 툴.
 월·수·금 아침마다 다섯 개 유튜브 채널과 한 개 네이버 블로그의 새 콘텐츠를 자동 수집하고,
-700–1,200자 한국어 심층 요약으로 정리해서 에디토리얼 피드로 보여준다.
+1,200–1,800자 한국어 심층 요약으로 정리해서 에디토리얼 피드로 보여준다.
 
 - **타겟 소스:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소, 메르의 네이버 블로그
 - **유튜브 채널:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소
@@ -157,7 +157,7 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 │       │   └─ tier 3: yt-dlp VTT (same)                       │
 │       │                                                      │
 │       ├─ summarizers/gemini_flash.py                         │
-│       │   (700-1,200 Korean chars, prompt v1)                │
+│       │   (1,200-1,800 Korean chars, prompt v2)              │
 │       │   reads GEMINI_API_KEY secret                        │
 │       │                                                      │
 │       └─ writers/json_store.py                               │

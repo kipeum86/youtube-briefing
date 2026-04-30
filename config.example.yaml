@@ -9,23 +9,23 @@ pipeline:
     provider: gemini
     # Use the latest available Gemini Flash model string at the time of setup.
     # "-latest" aliases and "-preview" models are fine per user decision (qualitative eval only).
-    model: gemini-2.5-flash
+    model: gemini-3-flash-preview
     repair_model: null
     # Set PROMPT_VERSION_OVERRIDE=v1 locally if you need a quick rollback.
     prompt_version: v2
     output_format: free
     temperature: null
-    max_output_tokens: 1600
+    max_output_tokens: 3000
     request_timeout_seconds: 90
     transient_retries: 2
     transient_backoff_seconds: 5
-    repair_attempts: 1
-    full_retries: 1
-    short_output_retries: 1
+    repair_attempts: 2
+    full_retries: 2
+    short_output_retries: 2
 
   # Summary length constraints (Korean characters)
-  summary_min_chars: 700
-  summary_max_chars: 1200
+  summary_min_chars: 1200
+  summary_max_chars: 1800
   summary_headline_max_chars: 24
   context_max_chars: 30000
 

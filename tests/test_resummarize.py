@@ -7,11 +7,13 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from pipeline.fetchers.transcript_extractor import TranscriptResult, TransientTranscriptFailure
 from pipeline.models import (
     Briefing,
     BriefingStatus,
     DiscoverySource,
     FailureReason,
+    SourceType,
 )
 from pipeline.summarizers.base import SummarizerResult
 from pipeline.writers.json_store import write_briefing
@@ -200,3 +202,132 @@ def test_status_all_can_retry_failed_placeholder_with_cache(tmp_path: Path):
     assert loaded.status == BriefingStatus.OK
     assert loaded.failure_reason is None
     assert loaded.summary is not None
+
+
+def test_select_targets_can_sort_by_published_at_not_filename(tmp_path: Path):
+    briefings_dir = tmp_path / "briefings"
+    transcripts_dir = tmp_path / "transcripts"
+    older = _make_ok_briefing(
+        video_id="older12345",
+        slug="zzz",
+        published_at=datetime(2026, 4, 9, 1, 0, 0, tzinfo=timezone.utc),
+    )
+    newer = _make_ok_briefing(
+        video_id="newer12345",
+        slug="aaa",
+        published_at=datetime(2026, 4, 9, 10, 0, 0, tzinfo=timezone.utc),
+    )
+    write_briefing(older, briefings_dir)
+    write_briefing(newer, briefings_dir)
+    _write_transcript(transcripts_dir, older.video_id)
+    _write_transcript(transcripts_dir, newer.video_id)
+
+    selection = _select(
+        briefings_dir,
+        transcripts_dir,
+        sort_key="published_at",
+        limit=2,
+    )
+
+    assert [target.briefing.video_id for target in selection.targets] == [
+        newer.video_id,
+        older.video_id,
+    ]
+
+
+def test_fetch_missing_naver_blog_text_is_cached_and_resummarized(
+    tmp_path: Path,
+    monkeypatch,
+):
+    briefings_dir = tmp_path / "briefings"
+    transcripts_dir = tmp_path / "transcripts"
+    original = _make_ok_briefing(
+        video_id="224263266592",
+        slug="mer",
+        channel_name="메르의 블로그",
+        discovery_source=DiscoverySource.NAVER_BLOG_RSS,
+        source_type=SourceType.NAVER_BLOG,
+        video_url="https://blog.naver.com/ranto28/224263266592",
+        thumbnail_url="https://ssl.pstatic.net/static/blog/icon/favicon.ico",
+    )
+    path = write_briefing(original, briefings_dir)
+    fetched_text = "블로그 본문 " * 100
+
+    def fake_extract_blog_post_text(post_url, item_id):  # noqa: ANN001
+        assert post_url == str(original.video_url)
+        assert item_id == original.video_id
+        return TranscriptResult(text=fetched_text, source="naver_blog_html")
+
+    monkeypatch.setattr(
+        resummarize_from_cache,
+        "extract_blog_post_text",
+        fake_extract_blog_post_text,
+    )
+
+    selection = _select(
+        briefings_dir,
+        transcripts_dir,
+        fetch_missing=True,
+    )
+    summarizer = FakeSummarizer()
+    result = resummarize_from_cache.resummarize_selection(
+        selection=selection,
+        briefings_dir=briefings_dir,
+        summarizer=summarizer,
+        fetch_missing=True,
+        now_fn=lambda: FIXED_NOW,
+    )
+
+    loaded = Briefing.model_validate_json(path.read_text(encoding="utf-8"))
+    assert result["written"] == 1
+    assert summarizer.calls == [(fetched_text, original.video_id)]
+    cached = transcripts_dir / f"{original.video_id}.txt"
+    assert cached.read_text(encoding="utf-8") == fetched_text
+    assert loaded.summary != original.summary
+    assert loaded.model == "fake-model"
+
+
+def test_fetch_missing_failure_preserves_existing_briefing(
+    tmp_path: Path,
+    monkeypatch,
+):
+    briefings_dir = tmp_path / "briefings"
+    transcripts_dir = tmp_path / "transcripts"
+    original = _make_ok_briefing(
+        video_id="224263266592",
+        slug="mer",
+        channel_name="메르의 블로그",
+        discovery_source=DiscoverySource.NAVER_BLOG_RSS,
+        source_type=SourceType.NAVER_BLOG,
+        video_url="https://blog.naver.com/ranto28/224263266592",
+        thumbnail_url="https://ssl.pstatic.net/static/blog/icon/favicon.ico",
+    )
+    path = write_briefing(original, briefings_dir)
+
+    def fake_extract_blog_post_text(post_url, item_id):  # noqa: ANN001
+        raise TransientTranscriptFailure(item_id, "network")
+
+    monkeypatch.setattr(
+        resummarize_from_cache,
+        "extract_blog_post_text",
+        fake_extract_blog_post_text,
+    )
+
+    selection = _select(
+        briefings_dir,
+        transcripts_dir,
+        fetch_missing=True,
+    )
+    result = resummarize_from_cache.resummarize_selection(
+        selection=selection,
+        briefings_dir=briefings_dir,
+        summarizer=FakeSummarizer(),
+        fetch_missing=True,
+        now_fn=lambda: FIXED_NOW,
+    )
+
+    loaded = Briefing.model_validate_json(path.read_text(encoding="utf-8"))
+    assert result["written"] == 0
+    assert result["failed"] == 1
+    assert loaded.summary == original.summary
+    assert not (transcripts_dir / f"{original.video_id}.txt").exists()

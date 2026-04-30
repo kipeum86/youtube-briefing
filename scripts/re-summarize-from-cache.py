@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Re-summarize existing briefings from local transcript cache.
 
-This script never calls transcript fetchers. It only processes items with
-`data/transcripts/{video_id}.txt`, backs up the current briefing JSON directory,
-then overwrites successfully re-summarized items in place.
+By default this script only processes items with
+`data/transcripts/{video_id}.txt`. With `--fetch-missing`, it can refill missing
+source text using the existing fetchers before summarizing. Successful runs back
+up the current briefing JSON directory, then overwrite re-summarized items in
+place.
 """
 
 from __future__ import annotations
@@ -24,7 +26,13 @@ if str(REPO_ROOT) not in sys.path:
 import yaml
 
 from pipeline.config import validate_config_dict  # noqa: E402
-from pipeline.models import Briefing, BriefingStatus, VideoMeta  # noqa: E402
+from pipeline.fetchers.naver_blog import extract_blog_post_text  # noqa: E402
+from pipeline.fetchers.transcript_extractor import (  # noqa: E402
+    PermanentTranscriptFailure,
+    TransientTranscriptFailure,
+    extract_transcript,
+)
+from pipeline.models import Briefing, BriefingStatus, SourceType, VideoMeta  # noqa: E402
 from pipeline.summarizers.base import (  # noqa: E402
     PermanentSummarizerError,
     Summarizer,
@@ -53,6 +61,7 @@ class TargetSelection:
 
 
 def main() -> int:
+    load_dotenv_if_present()
     args = parse_args()
     config = load_config(args.config)
     pipeline_cfg = config["pipeline"]
@@ -68,6 +77,8 @@ def main() -> int:
         status_filter=args.status,
         only_channel=args.only_channel,
         limit=args.limit,
+        sort_key=args.sort_key,
+        fetch_missing=args.fetch_missing,
     )
 
     summarizer = None if args.dry_run else build_summarizer(config, args.prompt_version)
@@ -76,6 +87,7 @@ def main() -> int:
         briefings_dir=briefings_dir,
         summarizer=summarizer,
         dry_run=args.dry_run,
+        fetch_missing=args.fetch_missing,
     )
 
     print_report(result)
@@ -109,6 +121,18 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--prompt-version", help="Override config pipeline.summarizer.prompt_version.")
     parser.add_argument("--only-channel", help="Only re-summarize one channel_slug.")
     parser.add_argument("--limit", type=int, help="Maximum number of cached items to process.")
+    parser.add_argument(
+        "--sort",
+        dest="sort_key",
+        choices=["filename", "published_at"],
+        default="filename",
+        help="Target ordering. Default preserves the existing filename-desc behavior.",
+    )
+    parser.add_argument(
+        "--fetch-missing",
+        action="store_true",
+        help="Fetch and cache missing source text instead of skipping missing transcript caches.",
+    )
     parser.add_argument("--dry-run", action="store_true", help="List targets without calling Gemini or writing files.")
     parser.add_argument("--output-json", type=Path)
     return parser.parse_args()
@@ -124,6 +148,14 @@ def load_config(config_path: Path) -> dict[str, Any]:
 
 def resolve_repo_path(path: Path) -> Path:
     return path if path.is_absolute() else REPO_ROOT / path
+
+
+def load_dotenv_if_present() -> None:
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    load_dotenv(REPO_ROOT / ".env", override=False)
 
 
 def build_summarizer(config: dict[str, Any], prompt_version: str | None = None) -> Summarizer:
@@ -159,14 +191,25 @@ def select_targets(
     status_filter: str = "ok",
     only_channel: str | None = None,
     limit: int | None = None,
+    sort_key: str = "filename",
+    fetch_missing: bool = False,
 ) -> TargetSelection:
     targets: list[ResummarizeTarget] = []
     skipped_status = 0
     skipped_channel = 0
     skipped_missing_cache = 0
 
+    entries: list[tuple[Path, Briefing]] = []
     for path in sorted(briefings_dir.glob("*.json"), reverse=True):
         briefing = Briefing.model_validate_json(path.read_text(encoding="utf-8"))
+        entries.append((path, briefing))
+
+    if sort_key == "published_at":
+        entries.sort(key=lambda entry: (entry[1].published_at, entry[0].name), reverse=True)
+    elif sort_key != "filename":
+        raise ValueError(f"unknown sort_key: {sort_key}")
+
+    for path, briefing in entries:
 
         if status_filter == "ok" and briefing.status != BriefingStatus.OK:
             skipped_status += 1
@@ -177,8 +220,9 @@ def select_targets(
 
         transcript_path = transcript_cache_dir / f"{briefing.video_id}.txt"
         if not transcript_path.exists():
-            skipped_missing_cache += 1
-            continue
+            if not fetch_missing:
+                skipped_missing_cache += 1
+                continue
 
         targets.append(
             ResummarizeTarget(
@@ -204,6 +248,7 @@ def resummarize_selection(
     briefings_dir: Path,
     summarizer: Summarizer | None,
     dry_run: bool = False,
+    fetch_missing: bool = False,
     now_fn: NowFn | None = None,
 ) -> dict[str, Any]:
     now_fn = now_fn or _utc_now
@@ -233,7 +278,7 @@ def resummarize_selection(
 
     for target in selection.targets:
         try:
-            transcript = target.transcript_path.read_text(encoding="utf-8")
+            transcript = read_or_fetch_transcript(target, fetch_missing=fetch_missing)
             summary_result = summarizer.summarize(
                 transcript,
                 briefing_to_video_meta(target.briefing),
@@ -253,13 +298,50 @@ def resummarize_selection(
             write_briefing(updated, briefings_dir)
             result["written"] += 1
             result["items"].append(_item_row(target, status="written"))
-        except (PermanentSummarizerError, TransientSummarizerError, ValueError) as exc:
+        except (
+            FileNotFoundError,
+            PermanentSummarizerError,
+            PermanentTranscriptFailure,
+            TransientSummarizerError,
+            TransientTranscriptFailure,
+            ValueError,
+        ) as exc:
             result["failed"] += 1
             result["items"].append(
                 _item_row(target, status="failed", error=f"{type(exc).__name__}: {exc}")
             )
 
     return result
+
+
+def read_or_fetch_transcript(
+    target: ResummarizeTarget,
+    *,
+    fetch_missing: bool = False,
+) -> str:
+    """Read cached source text, optionally fetching and caching missing text."""
+
+    if target.transcript_path.exists():
+        return target.transcript_path.read_text(encoding="utf-8")
+    if not fetch_missing:
+        raise FileNotFoundError(f"missing transcript cache: {target.transcript_path}")
+
+    briefing = target.briefing
+    if briefing.source_type == SourceType.NAVER_BLOG:
+        result = extract_blog_post_text(str(briefing.video_url), item_id=briefing.video_id)
+        _write_transcript_cache(target.transcript_path, result.text)
+        return result.text
+
+    result = extract_transcript(
+        briefing.video_id,
+        cache_dir=target.transcript_path.parent,
+    )
+    return result.text
+
+
+def _write_transcript_cache(path: Path, text: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(text, encoding="utf-8")
 
 
 def create_backup(briefings_dir: Path, now_fn: NowFn | None = None) -> Path:

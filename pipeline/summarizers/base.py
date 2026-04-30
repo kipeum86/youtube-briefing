@@ -175,11 +175,37 @@ class Summarizer(ABC):
                 and _needs_full_retry(last_issues, retry_summary, contract)
             ):
                 full_retries += 1
+                prompt = self._build_retry_prompt(prompt, last_issues, contract)
                 logger.info(
                     "[%s] retrying full summary generation after contract failure",
                     meta.channel_slug,
                 )
                 continue
+
+            if (
+                format_repairs < self.max_format_repair_attempts
+                and _can_contract_repair_after_retries(last_issues)
+            ):
+                format_repairs += 1
+                repaired = self._final_repair_response(
+                    retry_summary,
+                    last_issues,
+                    contract,
+                    transcript,
+                    meta,
+                ).strip()
+                self._validate_language(repaired)
+
+                repaired_issues = validate_summary_contract(repaired, contract)
+                if not repaired_issues:
+                    return self._build_result(repaired)
+
+                last_issues = repaired_issues
+                logger.info(
+                    "[%s] summary contract failed after final repair: %s",
+                    meta.channel_slug,
+                    ", ".join(issue_codes(repaired_issues)),
+                )
 
             break
 
@@ -209,6 +235,17 @@ class Summarizer(ABC):
             failure_code="summarizer_refused",
         )
 
+    def _final_repair_response(
+        self,
+        raw_response: str,
+        issues: list[SummaryValidationIssue],
+        contract: SummaryContract,
+        transcript: str,
+        meta: VideoMeta,
+    ) -> str:
+        """Last-chance contract repair after full retries have failed."""
+        return self._repair_response(raw_response, issues, contract)
+
     def _normalize_response(
         self,
         raw_response: str,
@@ -217,6 +254,23 @@ class Summarizer(ABC):
     ) -> str:
         """Convert provider-native output into the legacy markdown summary."""
         return raw_response
+
+    def _build_retry_prompt(
+        self,
+        prompt: str,
+        issues: list[SummaryValidationIssue],
+        contract: SummaryContract,
+    ) -> str:
+        issue_lines = "\n".join(f"- {issue.code}: {issue.message}" for issue in issues)
+        return f"""{prompt}
+
+---
+
+이전 출력은 아래 계약 검증에 실패했다.
+
+{issue_lines}
+
+다시 작성할 때는 반드시 전체 길이를 {contract.min_chars}~{contract.max_chars}자로 맞추고, 헤드라인 1개와 본문 3개 단락만 출력하라. 본문 세 단락은 각각 충분한 길이로 핵심 주장, 구체 근거, 함의를 나누어 써라."""
 
     # ------------------------------------------------------------------
     # Shared validation helpers
@@ -332,6 +386,24 @@ def _needs_full_retry(
             contract,
         )
     return False
+
+
+def _can_contract_repair_after_retries(
+    issues: list[SummaryValidationIssue],
+) -> bool:
+    codes = set(issue_codes(issues))
+    return bool(codes) and codes.issubset(
+        {
+            "length_below_min",
+            "wrong_block_count",
+            "missing_headline",
+            "section_label",
+            "body_bold",
+            "markdown_header",
+            "bullet_list",
+            "meta_narration",
+        }
+    )
 
 
 def _missing_headline_is_repairable(

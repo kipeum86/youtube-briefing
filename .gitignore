@@ -6,6 +6,7 @@ NOTEBOOKLM_AUTH_JSON
 
 # Local-only transcripts (see P6 — not committed due to ToS/copyright + repo bloat)
 data/transcripts/
+data/briefings.backup-*/
 
 # Pipeline logs
 logs/
