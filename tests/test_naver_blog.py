@@ -1,10 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from pathlib import Path
 
 from pipeline.fetchers import naver_blog
 from pipeline.fetchers.transcript_extractor import PermanentTranscriptFailure
 from pipeline.models import DiscoverySource, SourceType
+
+FIXTURES_DIR = Path(__file__).parent / "fixtures" / "naver_blog"
 
 
 class _FakeResponse:
@@ -179,7 +182,23 @@ class TestExtractBlogPostText:
             2026, 4, 23, 22, 55, tzinfo=timezone.utc
         )
 
+    def test_does_not_pick_up_content_dates_from_meta_description(self):
+        """Regression: real ranto28/224263266592 page where the og:description meta
+        tag contains "2026년 5월 15일" (a date the article *talks about*, not its
+        publish date). The extractor must use the labeled NAVER_DATE_RE source
+        (`2026. 4. 24. 7:55`) and ignore the content date."""
+        html = (FIXTURES_DIR / "ranto28_224263266592.html").read_text(encoding="utf-8")
+
+        # Sanity: the contaminating content date really is in the head window.
+        assert "2026년 5월 15일" in html[:20000]
+
+        published = naver_blog._extract_published_at(html)
+        assert published == datetime(2026, 4, 23, 22, 55, tzinfo=timezone.utc)
+
     def test_returns_none_when_no_labeled_date_source_present(self):
+        """When JSON-LD, whitelisted meta, NAVER_DATE_RE and KEYED_TIMESTAMP_RE
+        all miss, the extractor must return None — never fall back to fuzzy
+        matching against page content. The caller keeps the RSS pubDate."""
         html = """
         <html>
           <head>
@@ -191,5 +210,4 @@ class TestExtractBlogPostText:
           </body>
         </html>
         """
-
         assert naver_blog._extract_published_at(html) is None

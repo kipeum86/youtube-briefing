@@ -363,6 +363,12 @@ class TestRunOrchestrator:
     def test_blog_published_at_override_rejected_when_drift_exceeds_two_days(
         self, tmp_path: Path, fake_summarizer, monkeypatch
     ):
+        """REGRESSION: Naver page extractor returns a date >2d from RSS pubDate
+        (e.g. it picked up a content date from og:description). The pipeline must
+        keep the trustworthy RSS pubDate and reject the override.
+
+        Original incident: ranto28/224263266592 → page yielded 2026-05-15 (a date
+        the post mentions), RSS said 2026-04-24. ~21d drift → reject."""
         config_path = _write_config(
             tmp_path,
             channels=[],
@@ -370,13 +376,16 @@ class TestRunOrchestrator:
         )
         briefings_dir = tmp_path / "briefings"
 
+        rss_published = datetime(2026, 4, 24, 7, 55, tzinfo=timezone.utc)
+        contaminated_page_date = datetime(2026, 5, 15, 0, 0, tzinfo=timezone.utc)
+
         blog_meta = VideoMeta(
             video_id="224263266592",
             channel_id="ranto28",
             channel_slug="mer",
             channel_name="메르의 블로그",
             title="미국 국가부채를 29만 4,117번 갚을 수 있다는 프시케 소행성 근황",
-            published_at=datetime(2026, 4, 24, 7, 55, tzinfo=timezone.utc),
+            published_at=rss_published,
             discovery_source=DiscoverySource.NAVER_BLOG_RSS,
             source_type="naver_blog",
             source_url="https://blog.naver.com/ranto28/224263266592",
@@ -392,7 +401,7 @@ class TestRunOrchestrator:
             lambda url, item_id: TranscriptResult(
                 text="본문 " * 200,
                 source="naver_blog_html",
-                published_at=datetime(2026, 5, 15, 0, 0, tzinfo=timezone.utc),
+                published_at=contaminated_page_date,
             ),
         )
 
@@ -400,6 +409,7 @@ class TestRunOrchestrator:
         assert exit_code == 0
         files = list(briefings_dir.glob("*.json"))
         assert len(files) == 1
+        # Filename uses RSS pubDate (KST), not the contaminated page date.
         assert files[0].name == "2026-04-24-mer-224263266592.json"
         loaded = files[0].read_text(encoding="utf-8")
         assert '"published_at": "2026-04-24T07:55:00Z"' in loaded

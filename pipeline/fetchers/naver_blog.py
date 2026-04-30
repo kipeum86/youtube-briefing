@@ -312,6 +312,11 @@ def _extract_published_at(html: str) -> datetime | None:
         if parsed is not None:
             return parsed
 
+    # Intentionally no loose fallback. A bare date pattern (ISO/dot/Korean/14-digit
+    # timestamp) anywhere in the first 20 KB will match dates that appear as
+    # *content* — og:description summaries, article body text, embedded image
+    # filenames — and silently overwrite the trustworthy RSS pubDate. If none of
+    # the labeled sources above matched, return None so the caller keeps RSS.
     return None
 
 
