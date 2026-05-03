@@ -1,0 +1,20 @@
+{
+  "video_id": "w5uxF06kmSA",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "서울 아파트 불패? 절반은 안 오릅니다 | 북언더스탠딩 | 3040 부린이 처음 부동산 투자 | 스마트튜브 부동산조사연구소 김학렬 소장",
+  "published_at": "2026-05-02T11:55:00Z",
+  "video_url": "https://www.youtube.com/watch?v=w5uxF06kmSA",
+  "thumbnail_url": "https://i.ytimg.com/vi/w5uxF06kmSA/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-05-03T21:33:41.761838Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

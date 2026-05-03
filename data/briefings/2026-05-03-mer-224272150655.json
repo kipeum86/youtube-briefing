@@ -1,0 +1,20 @@
+{
+  "video_id": "224272150655",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "주사 1방으로 특정암의 67%가 사라지는 꿈의 항암제(feat CAR-T)",
+  "published_at": "2026-05-02T15:10:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224272150655",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA1MDJfNDcg/MDAxNzc3NjY5MzY3OTY1.PZXt-Zj_HDvl9fVHiJHuMSwiuBvSzMCjnO6fhmVkXeAg.zA-gMAsJgmDXYcNb1yA7Kes48GBr6O4u_c0xTFX8bNQg.JPEG/oabtoo9m.jpg?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-05-03T21:37:23.068206Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

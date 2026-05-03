@@ -1,0 +1,20 @@
+{
+  "video_id": "224271343377",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "해저케이블 전쟁 A/S (feat 대한전선 vs LS)",
+  "published_at": "2026-05-01T01:22:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224271343377",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA1MDFfMjkz/MDAxNzc3NTk4MjE3MjI1.FSFloplB2rR4VTG6geS0O1gHE0t0gY1w931JFl2nOx0g.Tjby8nWGN-ftZPWVVbzFbXaUQ-CjopJ3niqLQJMATHEg.JPEG/1507721.jpg?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-05-03T21:38:45.380422Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

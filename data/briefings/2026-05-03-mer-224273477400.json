@@ -1,0 +1,20 @@
+{
+  "video_id": "224273477400",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "중국의 황산수출 금지가 일으키는 나비효과 A/S",
+  "published_at": "2026-05-03T09:12:51Z",
+  "video_url": "https://blog.naver.com/ranto28/224273477400",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA1MDNfMjIw/MDAxNzc3Nzk5NjkwMDA1.w-Mtry_JuXqi6V-OX36ETG8hJjvo7hQELMD1US-FhR0g.SDS6I5vK_3VTmGmD68riMDFoSAxvmIAx4B7owDJsiTog.JPEG/s3ptyr52.jpg?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-05-03T21:36:25.699956Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

@@ -1,0 +1,20 @@
+{
+  "video_id": "JML1sAYADjA",
+  "channel_slug": "understanding",
+  "channel_name": "언더스탠딩",
+  "title": "말로 하는 '바이브 코딩' 핵심은 딱 하나입니다",
+  "published_at": "2026-05-02T14:15:00Z",
+  "video_url": "https://www.youtube.com/watch?v=JML1sAYADjA",
+  "thumbnail_url": "https://i.ytimg.com/vi/JML1sAYADjA/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-05-03T21:32:27.288987Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

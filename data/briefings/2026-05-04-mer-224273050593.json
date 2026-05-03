@@ -1,0 +1,20 @@
+{
+  "video_id": "224273050593",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "앤트로픽의 아모데이는 어떤 인물일까?",
+  "published_at": "2026-05-03T15:10:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224273050593",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA1MDNfMjE4/MDAxNzc3NzYwMzk4MDM5.Hg8cJM4VqKl4W1sYdrdYIRzS1ZUCquFMotV8Mki9XgIg.sZ6oiOYxQmBlugcvbYz2GPY242QzPAmVZC403RO6StEg.JPEG/65p36eto.jpg?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-05-03T21:36:01.948085Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}

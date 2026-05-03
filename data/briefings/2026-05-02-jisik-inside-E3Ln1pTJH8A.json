@@ -1,0 +1,20 @@
+{
+  "video_id": "E3Ln1pTJH8A",
+  "channel_slug": "jisik-inside",
+  "channel_name": "지식 인사이드",
+  "title": "(미방분 공개) 한국 반도체 비싸졌어도 아직 고점 아닌 이유ㅣ지식인초대석 (이선엽 대표 풀버전)",
+  "published_at": "2026-05-02T01:00:11Z",
+  "video_url": "https://www.youtube.com/watch?v=E3Ln1pTJH8A",
+  "thumbnail_url": "https://i.ytimg.com/vi/E3Ln1pTJH8A/hqdefault.jpg",
+  "duration_seconds": 0,
+  "discovery_source": "rss",
+  "source_type": "youtube",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "summarizer_refused",
+  "generated_at": "2026-05-03T21:34:27.657452Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}
