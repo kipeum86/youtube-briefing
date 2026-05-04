@@ -213,6 +213,26 @@ class TestProcessVideo:
         assert result.status == BriefingStatus.FAILED
         assert result.failure_reason.value == "wrong_language"
 
+    def test_summary_contract_failure_is_retried_next_run(self, tmp_path: Path, fake_summarizer, monkeypatch):
+        monkeypatch.setattr(
+            run,
+            "extract_transcript",
+            lambda vid, cache_dir: TranscriptResult(text="트랜스크립트 " * 100, source="transcript_api_stenographer"),
+        )
+        fake_summarizer.summarize.side_effect = PermanentSummarizerError(
+            "summarizer output failed summary contract after repair/retry: length_below_min",
+            failure_code="summarizer_refused",
+        )
+
+        result = run.process_video(
+            meta=_make_meta("vid123XYZ45"),
+            summarizer=fake_summarizer,
+            briefings_dir=tmp_path / "briefings",
+            transcript_cache_dir=None,
+        )
+        assert result is None
+        assert not (tmp_path / "briefings").exists()
+
 
 class TestRunOrchestrator:
     def test_happy_path_writes_all_videos(self, tmp_path: Path, fake_summarizer, monkeypatch):

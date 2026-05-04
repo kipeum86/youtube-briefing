@@ -16,7 +16,7 @@ class SummarizerConfig(BaseModel):
     model: str = "gemini-2.5-flash"
     repair_model: str | None = None
     prompt_version: str = "v1"
-    output_format: Literal["free", "json"] = "free"
+    output_format: Literal["free", "json"] = "json"
     temperature: float | None = Field(default=None, ge=0, le=2)
     max_output_tokens: int | None = Field(default=1600, ge=1)
     request_timeout_seconds: float | None = Field(default=90, gt=0)

@@ -7,7 +7,7 @@ _Auto-summarized Korean economics & current-affairs YouTube plus selected Naver 
 **TL;DR (English).** A personal tool that watches 5 Korean YouTube channels
 (박종훈, 슈카월드, 언더스탠딩, 지식인사이드, 지구본연구소) plus Mer's Naver
 blog (메르의 네이버 블로그), extracts transcripts / blog post text,
-generates 1,200–1,800-character Korean deep-analysis summaries with Gemini 3 Flash,
+generates 1,000–1,800-character Korean deep-analysis summaries with Gemini 3 Flash,
 and publishes them as a static Astro site on GitHub Pages. Updates Mon/Wed/Fri
 at 06:00 KST via GitHub Actions. No database, no Sheets, no Google Cloud.
 Fork-friendly: clone, add your Gemini API key, edit the source list, run the
@@ -16,9 +16,10 @@ pipeline.
 ## Forking this project
 
 This repo is designed to be forked. Each user brings their own YouTube/blog
-source list and their own Gemini API key. The live `config.yaml` is gitignored,
-so clones of upstream see a clean template at `config.example.yaml`, and GitHub
-Actions reads the real config from the `PIPELINE_CONFIG_YAML` repository secret.
+source list and their own Gemini API key. Start from the clean template at
+`config.example.yaml`, then commit your `config.yaml` so GitHub Actions uses the
+same settings you tested locally. `PIPELINE_CONFIG_YAML` remains available only
+as a fallback for forks that keep `config.yaml` private.
 
 To set up your own fork:
 
@@ -42,7 +43,7 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 
 바쁠 때 경제·시사 유튜브와 블로그를 다 보기 어려워서 만든 개인용 브리핑 툴.
 월·수·금 아침마다 다섯 개 유튜브 채널과 한 개 네이버 블로그의 새 콘텐츠를 자동 수집하고,
-1,200–1,800자 한국어 심층 요약으로 정리해서 에디토리얼 피드로 보여준다.
+1,000–1,800자 한국어 심층 요약으로 정리해서 에디토리얼 피드로 보여준다.
 
 - **타겟 소스:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소, 메르의 네이버 블로그
 - **유튜브 채널:** 박종훈의 지식한방, 슈카월드, 언더스탠딩, 지식 인사이드, 지구본연구소
@@ -110,7 +111,12 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 
    수정된 `config.yaml` 을 커밋 + 푸시.
 
-5. **config.yaml 업로드 → GitHub secret**
+5. **선택: config.yaml secret fallback**
+
+   기본값은 수정된 `config.yaml` 을 커밋 + 푸시하는 것. GitHub Actions 는
+   체크인된 `config.yaml` 을 먼저 사용한다.
+
+   `config.yaml` 을 private 하게 유지하는 fork 에서만 fallback secret 을 사용:
    ```bash
    gh secret set PIPELINE_CONFIG_YAML -R YOUR_USERNAME/youtube-briefing < config.yaml
    ```
@@ -157,7 +163,7 @@ in `pipeline/summarizers/gemini_flash.py` if they want non-Korean output.
 │       │   └─ tier 3: yt-dlp VTT (same)                       │
 │       │                                                      │
 │       ├─ summarizers/gemini_flash.py                         │
-│       │   (1,200-1,800 Korean chars, prompt v2)              │
+│       │   (1,000-1,800 Korean chars, prompt v2)              │
 │       │   reads GEMINI_API_KEY secret                        │
 │       │                                                      │
 │       └─ writers/json_store.py                               │

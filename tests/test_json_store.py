@@ -47,7 +47,11 @@ def _make_ok_briefing(video_id="abc123XYZ45", slug="shuka", **overrides) -> Brie
     return Briefing(**defaults)
 
 
-def _make_failed_briefing(video_id="failed123XY", slug="shuka") -> Briefing:
+def _make_failed_briefing(
+    video_id="failed123XY",
+    slug="shuka",
+    failure_reason=FailureReason.MEMBERS_ONLY,
+) -> Briefing:
     return Briefing(
         video_id=video_id,
         channel_slug=slug,
@@ -60,7 +64,7 @@ def _make_failed_briefing(video_id="failed123XY", slug="shuka") -> Briefing:
         discovery_source=DiscoverySource.RSS,
         status=BriefingStatus.FAILED,
         summary=None,
-        failure_reason=FailureReason.MEMBERS_ONLY,
+        failure_reason=failure_reason,
         generated_at=datetime(2026, 4, 8, 21, 15, 0, tzinfo=timezone.utc),
         provider="gemini",
         model="gemini-2.5-flash",
@@ -163,6 +167,19 @@ class TestListProcessedVideoIds:
         ids = list_processed_video_ids(tmp_path)
         assert ids == {"abc123XYZ45", "def456QRS78", "fail789UVW"}
 
+    def test_excludes_retryable_summarizer_refused_failures(self, tmp_path: Path):
+        write_briefing(_make_ok_briefing(video_id="abc123XYZ45"), tmp_path)
+        write_briefing(
+            _make_failed_briefing(
+                video_id="retry999XYZ",
+                failure_reason=FailureReason.SUMMARIZER_REFUSED,
+            ),
+            tmp_path,
+        )
+
+        ids = list_processed_video_ids(tmp_path)
+        assert ids == {"abc123XYZ45"}
+
     def test_ignores_non_json_files(self, tmp_path: Path):
         write_briefing(_make_ok_briefing(), tmp_path)
         (tmp_path / "README.md").write_text("not a briefing")
@@ -206,6 +223,20 @@ class TestListProcessedVideoIdsByChannel:
             "shuka": {"shuka0001XY", "shuka0002XY"},
             "parkjonghoon": {"parkjh001XY"},
         }
+
+    def test_excludes_retryable_summarizer_refused_failures_by_channel(self, tmp_path: Path):
+        write_briefing(_make_ok_briefing(video_id="shuka0001XY", slug="shuka"), tmp_path)
+        write_briefing(
+            _make_failed_briefing(
+                video_id="retry999XYZ",
+                slug="shuka",
+                failure_reason=FailureReason.SUMMARIZER_REFUSED,
+            ),
+            tmp_path,
+        )
+
+        by_channel = list_processed_video_ids_by_channel(tmp_path)
+        assert by_channel == {"shuka": {"shuka0001XY"}}
 
     def test_channel_with_no_briefings_absent_from_result(self, tmp_path: Path):
         """Unprocessed channels don't appear — callers use .get(slug, set())."""

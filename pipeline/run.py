@@ -6,6 +6,7 @@ Pure orchestration. NEVER invokes git. The launchd chain runs:
 Key behaviors (deterministic failure contract):
   - Per-video try/except — one video's failure never halts the run
   - TransientFailure → skip (no write), auto-retried next run via glob exclusion
+  - Summary contract failure → skip (no write), retry next run with a fresh model call
   - PermanentFailure → write placeholder JSON with status=failed
   - Discovery failures logged, that channel is skipped, other channels continue
 
@@ -229,6 +230,13 @@ def build_summarizer_from_config(pipeline_cfg: PipelineConfig) -> Summarizer:
     return summarizer
 
 
+def _is_retryable_summary_contract_failure(error: PermanentSummarizerError) -> bool:
+    return (
+        error.failure_code == "summarizer_refused"
+        and "failed summary contract" in str(error)
+    )
+
+
 def process_video(
     meta: VideoMeta,
     summarizer: Summarizer,
@@ -292,6 +300,14 @@ def process_video(
         logger.warning("[%s] transient summarizer failure, skipping: %s", meta.channel_slug, e)
         return None
     except PermanentSummarizerError as e:
+        if _is_retryable_summary_contract_failure(e):
+            logger.warning(
+                "[%s] summary contract failure, skipping for retry next run: %s",
+                meta.channel_slug,
+                e,
+            )
+            return None
+
         logger.info("[%s] permanent summarizer failure: %s", meta.channel_slug, e)
         briefing = build_briefing_from_permanent_failure(
             meta=effective_meta,

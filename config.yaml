@@ -10,15 +10,9 @@ pipeline:
     # Use the latest available Gemini Flash model string at the time of setup.
     # "-latest" aliases and "-preview" models are fine per user decision (qualitative eval only).
     model: gemini-3-flash-preview
-    repair_model: null
-    # Set PROMPT_VERSION_OVERRIDE=v1 locally if you need a quick rollback.
     prompt_version: v2
     output_format: json
-    temperature: null
     max_output_tokens: 3000
-    request_timeout_seconds: 90
-    transient_retries: 2
-    transient_backoff_seconds: 5
     repair_attempts: 2
     full_retries: 2
     short_output_retries: 2
@@ -26,8 +20,6 @@ pipeline:
   # Summary length constraints (Korean characters)
   summary_min_chars: 1000
   summary_max_chars: 1800
-  summary_headline_max_chars: 24
-  context_max_chars: 30000
 
   # Per-channel discovery cap: how many NEW videos per channel per run.
   # YouTube's RSS feed returns ~15 items; we cap below that so a single
@@ -35,8 +27,6 @@ pipeline:
   # enough headroom for channels that post 2-3 videos/day between runs,
   # not so many that 3-day steady-state processing balloons.
   max_new_videos_per_channel: 10
-  max_discovery_concurrency: 4
-  max_processing_concurrency: 2
 
   # Skip videos shorter than this many seconds. Set to filter out Shorts,
   # which live on the same channel upload feed as regular videos but aren't
@@ -54,23 +44,32 @@ pipeline:
   transcript_cache_dir: data/transcripts
   log_dir: logs
 
+  # Retry policy for transient transcript/summarize failures
+  retry_max_attempts: 2
+  retry_backoff_seconds: 5
+
 channels:
-  # Add your channels here. To find a YouTube channel ID from a @handle:
-  #   python scripts/resolve-channel-ids.py @your-channel-handle
-  # Each entry needs:
-  #   id:    the UCxxxxxxxxxxxxxxxxxxxxxx format channel ID
-  #   name:  the channel's display name (used in briefing metadata + UI)
-  #   slug:  a lowercase-alphanumeric short identifier, used in filenames
-  #          and as the channel filter key in the frontend
-  - id: "UCxxxxxxxxxxxxxxxxxxxxxx"
-    name: "Example Channel"
-    slug: example
+  - id: "UCOB62fKRT7b73X7tRxMuN2g"  # https://www.youtube.com/@kpunch
+    name: "박종훈의 지식한방"
+    slug: parkjonghoon
+
+  - id: "UCsJ6RuBiTVWRX156FVbeaGg"  # https://www.youtube.com/@syukaworld
+    name: "슈카월드"
+    slug: shuka
+
+  - id: "UCIUni4ScRp4mqPXsxy62L5w"  # https://www.youtube.com/@understanding.
+    name: "언더스탠딩"
+    slug: understanding
+
+  - id: "UCA_hgsFzmynpv1zkvA5A7jA"  # https://www.youtube.com/@지식인사이드
+    name: "지식 인사이드"
+    slug: jisik-inside
+
+  - id: "UCstI8HwGQsHdqLDgyH0PImw"  # https://www.youtube.com/@globelab
+    name: "최준영 박사의 지구본 연구소"
+    slug: globelab
 
 blogs:
-  # Optional Naver blog sources. Each entry needs:
-  #   blog_id: the blog account id used in https://blog.naver.com/<blog_id>
-  #   name:    display name used in briefing metadata + UI
-  #   slug:    lowercase identifier used in filenames and filters
-  - blog_id: "exampleblog"
-    name: "Example Naver Blog"
-    slug: example-blog
+  - blog_id: "ranto28"  # https://blog.naver.com/ranto28
+    name: "메르의 블로그"
+    slug: mer

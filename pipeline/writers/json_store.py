@@ -6,8 +6,9 @@ Key invariants:
   2. Writes are atomic: write to `{name}.json.tmp` then `os.replace()` to the
      final path. No partial files.
   3. Dedup is stateless — `list_processed_video_ids()` derives the "already
-     processed" set by globbing `data/briefings/*.json` and parsing video_id
-     from each filename. There is NO separate state.json (per plan P1 revision).
+     processed" set by globbing `data/briefings/*.json`. Retryable summary
+     failures are excluded so they can be attempted again next run. There is
+     NO separate state.json (per plan P1 revision).
 
 Filename format: `{YYYY-MM-DD}-{channel_slug}-{video_id}.json`
   - date: from `published_at`, YYYY-MM-DD (KST)
@@ -17,6 +18,7 @@ Filename format: `{YYYY-MM-DD}-{channel_slug}-{video_id}.json`
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import re
@@ -25,7 +27,7 @@ from pathlib import Path
 from typing import Iterable
 from zoneinfo import ZoneInfo
 
-from pipeline.models import Briefing
+from pipeline.models import Briefing, BriefingStatus, FailureReason
 
 logger = logging.getLogger(__name__)
 
@@ -36,6 +38,8 @@ KST = ZoneInfo("Asia/Seoul")
 _FILENAME_PATTERN = re.compile(
     r"^(?P<date>\d{4}-\d{2}-\d{2})-(?P<slug>[a-z][a-z0-9-]*)-(?P<video_id>[A-Za-z0-9_-]{5,20})\.json$"
 )
+
+_RETRYABLE_FAILURE_REASONS = {FailureReason.SUMMARIZER_REFUSED.value}
 
 
 def briefing_filename(briefing: Briefing) -> str:
@@ -87,6 +91,18 @@ def write_briefing(briefing: Briefing, briefings_dir: Path | str) -> Path:
     return final_path
 
 
+def _is_retryable_failed_briefing(path: Path) -> bool:
+    try:
+        raw = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return False
+
+    return (
+        raw.get("status") == BriefingStatus.FAILED.value
+        and raw.get("failure_reason") in _RETRYABLE_FAILURE_REASONS
+    )
+
+
 def list_processed_video_ids(briefings_dir: Path | str) -> set[str]:
     """Return the set of video_ids already present in briefings_dir.
 
@@ -108,6 +124,12 @@ def list_processed_video_ids(briefings_dir: Path | str) -> set[str]:
         match = _FILENAME_PATTERN.match(entry.name)
         if not match:
             logger.warning("ignoring malformed briefing filename: %s", entry.name)
+            continue
+        if _is_retryable_failed_briefing(entry):
+            logger.info(
+                "treating retryable failed briefing as unprocessed: %s",
+                entry.name,
+            )
             continue
         ids.add(match.group("video_id"))
 
@@ -142,6 +164,12 @@ def list_processed_video_ids_by_channel(
             continue
         match = _FILENAME_PATTERN.match(entry.name)
         if not match:
+            continue
+        if _is_retryable_failed_briefing(entry):
+            logger.info(
+                "treating retryable failed briefing as unprocessed: %s",
+                entry.name,
+            )
             continue
         slug = match.group("slug")
         result.setdefault(slug, set()).add(match.group("video_id"))

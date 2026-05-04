@@ -18,8 +18,8 @@ name: pipeline
 # Required secrets:
 #   GEMINI_API_KEY          — always required
 #   NOTEBOOKLM_AUTH_JSON    — required, contents of ~/.notebooklm/storage_state.json
-#   PIPELINE_CONFIG_YAML    — required when config.yaml is gitignored; full
-#                             contents of your local config.yaml
+#   PIPELINE_CONFIG_YAML    — optional fallback when config.yaml is not checked in;
+#                             full contents of your local config.yaml
 #                             Register via:
 #                               gh secret set PIPELINE_CONFIG_YAML -R $REPO \
 #                                 < config.yaml
@@ -104,6 +104,11 @@ jobs:
         env:
           PIPELINE_CONFIG_YAML: ${{ secrets.PIPELINE_CONFIG_YAML }}
         run: |
+          if [ -f config.yaml ]; then
+            echo "✓ using checked-in config.yaml"
+            exit 0
+          fi
+
           if [ -n "$PIPELINE_CONFIG_YAML" ]; then
             printf '%s' "$PIPELINE_CONFIG_YAML" > config.yaml
             chmod 600 config.yaml
@@ -111,13 +116,8 @@ jobs:
             exit 0
           fi
 
-          if [ -f config.yaml ]; then
-            echo "✓ using checked-in config.yaml"
-            exit 0
-          fi
-
           echo "::error::config.yaml is not present in the runner workspace."
-          echo "::error::Because config.yaml is gitignored, set PIPELINE_CONFIG_YAML from your local config.yaml:"
+          echo "::error::Commit config.yaml or set PIPELINE_CONFIG_YAML from your local config.yaml:"
           echo "::error::gh secret set PIPELINE_CONFIG_YAML -R \$GITHUB_REPOSITORY < config.yaml"
           exit 1
 
