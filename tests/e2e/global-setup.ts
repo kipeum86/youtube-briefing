@@ -14,13 +14,12 @@
  *
  * The cleanup happens in global-teardown.ts.
  *
- * Why fixtures instead of committed seed data: the production data/briefings/
- * is intentionally empty (a real fresh-clone for forkers). E2E tests need
- * populated state to verify user flows, so we inject fixtures at test time
- * only.
+ * Why fixtures instead of committed seed data: E2E tests need predictable
+ * populated state independent of whatever real briefing data is committed, so
+ * we inject fixtures at test time only.
  */
 
-import { cp, readdir, mkdir, rm } from "node:fs/promises";
+import { readFile, readdir, mkdir, rm, writeFile } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -47,8 +46,19 @@ async function globalSetup() {
   const entries = await readdir(FIXTURES_DIR);
   const jsonFixtures = entries.filter((f) => f.endsWith(".json"));
 
-  for (const filename of jsonFixtures) {
-    await cp(join(FIXTURES_DIR, filename), join(TARGET_DIR, filename));
+  const now = Date.now();
+  for (const [index, filename] of jsonFixtures.entries()) {
+    const fixture = JSON.parse(
+      await readFile(join(FIXTURES_DIR, filename), "utf-8"),
+    );
+    const stableRecentDate = new Date(now - index * 60 * 60 * 1000).toISOString();
+    fixture.published_at = stableRecentDate;
+    fixture.generated_at = stableRecentDate;
+    await writeFile(
+      join(TARGET_DIR, filename),
+      `${JSON.stringify(fixture, null, 2)}\n`,
+      "utf-8",
+    );
   }
   console.log(`[e2e setup] Copied ${jsonFixtures.length} fixture briefings.`);
 
