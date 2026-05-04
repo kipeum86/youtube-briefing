@@ -28,14 +28,11 @@ pipeline:
   # not so many that 3-day steady-state processing balloons.
   max_new_videos_per_channel: 10
 
-  # Skip videos shorter than this many seconds. Set to filter out Shorts,
-  # which live on the same channel upload feed as regular videos but aren't
-  # useful for briefings (no substance, no transcript worth summarizing).
-  # 600s (10 min) is a safe threshold — Shorts max out at 60 seconds, so
-  # anything past ~3 minutes is guaranteed to be a regular video. We go
-  # higher to also drop tiny trailer/announcement clips.
+  # Skip YouTube videos shorter than this many seconds. This drops Shorts and
+  # short clips that are too thin for durable briefings.
+  # 1200s (20 min) keeps the feed focused on full-length discussions.
   # Set to 0 or null to disable filtering.
-  min_duration_seconds: 600
+  min_duration_seconds: 1200
 
   # Local cron schedule: Mon/Wed/Fri 06:00 KST (= 21:00 UTC Sun/Tue/Thu)
   cron: "0 21 * * 0,2,4"

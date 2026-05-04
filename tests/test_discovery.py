@@ -242,16 +242,15 @@ class TestFilterShorts:
         kept = _filter_shorts(videos, 600)
         assert {v.video_id for v in kept} == {"long0001", "long0002"}
 
-    def test_keeps_videos_with_unknown_duration(self):
-        """Videos with duration_seconds=None are kept — better a false positive
-        than silently dropping a real upload because a probe failed."""
+    def test_drops_videos_with_unknown_duration_when_filter_enabled(self):
+        """Unknown duration is skipped when the duration filter is enabled."""
         videos = [
             _make_meta("known001", duration_seconds=1800),
             _make_meta("unknown1", duration_seconds=None),
             _make_meta("shortvid", duration_seconds=45),
         ]
         kept = _filter_shorts(videos, 600)
-        assert {v.video_id for v in kept} == {"known001", "unknown1"}
+        assert {v.video_id for v in kept} == {"known001"}
 
     def test_none_threshold_keeps_all(self):
         videos = [
@@ -606,9 +605,8 @@ class TestDiscoverNewVideos:
         )
         assert len(new) == 2
 
-    def test_duration_probe_failure_keeps_candidates(self, monkeypatch):
-        """If yt-dlp probe blows up, we fail open — keep everything rather
-        than silently dropping real videos due to a transient probe bug."""
+    def test_duration_probe_failure_skips_candidates(self, monkeypatch):
+        """If yt-dlp duration probing fails, skip candidates until next run."""
         rss_videos = [_make_meta("vidA00001"), _make_meta("vidB00001")]
         monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
 
@@ -624,8 +622,7 @@ class TestDiscoverNewVideos:
             known_video_ids=set(),
             min_duration_seconds=600,
         )
-        # Fail open — both candidates kept
-        assert len(new) == 2
+        assert new == []
 
     def test_min_duration_filters_catchup_path(self, monkeypatch):
         """yt-dlp catchup videos already carry duration — filter directly,

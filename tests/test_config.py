@@ -40,6 +40,7 @@ def test_validate_config_dict_accepts_minimal_valid_config():
     assert config.pipeline.summarizer.output_format == "json"
     assert config.pipeline.summarizer.max_output_tokens == 1600
     assert config.pipeline.summary_headline_max_chars == 24
+    assert config.pipeline.min_duration_seconds == 1200
     assert config.pipeline.max_discovery_concurrency == 4
     assert config.pipeline.max_processing_concurrency == 2
 

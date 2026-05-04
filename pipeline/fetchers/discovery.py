@@ -52,7 +52,7 @@ def discover_new_videos(
 
     Filter order matters:
       1. Filter to new (not in known_video_ids)
-      2. Filter out Shorts (duration < min_duration_seconds)
+      2. Filter out short or unknown-duration videos when a duration floor is enabled
       3. Cap to max_new_videos most recent
 
     Duration-filtering before capping matters: if a channel drops 5 Shorts in
@@ -68,8 +68,9 @@ def discover_new_videos(
         max_new_videos: optional cap on how many NEW videos to return per run.
             None (default) means no cap (use whatever RSS gives us, up to 15).
         min_duration_seconds: optional floor on video length, in seconds.
-            Videos shorter than this are dropped. None or 0 disables the
-            filter. Use 600 to filter out Shorts (Shorts max at 60s).
+            Videos shorter than this are dropped. Videos whose duration cannot
+            be resolved are also skipped so short clips do not leak through.
+            None or 0 disables the filter. Use 1200 to require 20+ minutes.
 
     Returns:
         List of new VideoMeta objects, ordered newest-first. Empty list if nothing new.
@@ -145,19 +146,12 @@ def discover_new_videos(
 
 
 def _filter_shorts(videos: list[VideoMeta], min_duration_seconds: int | None) -> list[VideoMeta]:
-    """Drop videos shorter than the threshold.
-
-    Videos with `duration_seconds=None` are kept — unknown duration is better
-    treated as "might be a real video" than silently dropped. In practice this
-    path only fires for RSS-sourced videos that the duration probe couldn't
-    resolve (yt-dlp failure), and we'd rather process a potential short than
-    miss a real upload because of a transient probe failure.
-    """
+    """Drop videos shorter than the threshold or missing duration metadata."""
     if not min_duration_seconds or min_duration_seconds <= 0:
         return videos
     return [
         v for v in videos
-        if v.duration_seconds is None or v.duration_seconds >= min_duration_seconds
+        if v.duration_seconds is not None and v.duration_seconds >= min_duration_seconds
     ]
 
 
@@ -187,11 +181,11 @@ def _enrich_and_filter_durations(
             durations = _probe_durations(to_probe)
         except Exception as e:  # noqa: BLE001
             logger.warning(
-                "[%s] duration probe failed: %s — keeping all candidates (fail open)",
+                "[%s] duration probe failed: %s — skipping candidates until duration can be verified",
                 channel_slug,
                 e,
             )
-            return videos, 0
+            return [], len(videos)
 
     # Replace each VideoMeta with a copy carrying the probed duration.
     enriched: list[VideoMeta] = []

@@ -37,7 +37,7 @@ class PipelineConfig(BaseModel):
     summary_max_chars: int = Field(default=1200, ge=1)
     summary_headline_max_chars: int = Field(default=24, ge=1)
     max_new_videos_per_channel: int = Field(default=10, ge=1)
-    min_duration_seconds: int | None = Field(default=600, ge=0)
+    min_duration_seconds: int | None = Field(default=1200, ge=0)
     transcript_cache_dir: str = "data/transcripts"
     log_dir: str = "logs"
     context_max_chars: int = Field(default=30_000, ge=1)
