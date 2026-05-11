@@ -37,6 +37,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # workflow_dispatch can be fired immediately after the pipeline pushes
+          # new data. Check out the branch tip at job runtime so Pages does not
+          # rebuild the pre-push SHA carried by the dispatch event.
+          ref: main
 
       - name: Set up Node.js
         uses: actions/setup-node@v4

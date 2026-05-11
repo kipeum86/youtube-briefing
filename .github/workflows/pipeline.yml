@@ -194,6 +194,25 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          NEW_SHA="$(git rev-parse HEAD)"
+          echo "Waiting for origin/main to resolve to $NEW_SHA"
+
+          for attempt in {1..12}; do
+            REMOTE_SHA="$(gh api "repos/$GITHUB_REPOSITORY/git/ref/heads/main" --jq .object.sha)"
+            if [ "$REMOTE_SHA" = "$NEW_SHA" ]; then
+              echo "✓ origin/main is at $NEW_SHA"
+              break
+            fi
+
+            echo "origin/main is still $REMOTE_SHA (attempt $attempt/12); waiting..."
+            sleep 5
+          done
+
+          if [ "$REMOTE_SHA" != "$NEW_SHA" ]; then
+            echo "::error::origin/main did not update to $NEW_SHA before Pages dispatch"
+            exit 1
+          fi
+
           gh workflow run deploy-pages --ref main
           echo "✓ Triggered deploy-pages workflow"
 

@@ -605,8 +605,13 @@ class TestDiscoverNewVideos:
         )
         assert len(new) == 2
 
-    def test_duration_probe_failure_skips_candidates(self, monkeypatch):
-        """If yt-dlp duration probing fails, skip candidates until next run."""
+    def test_duration_probe_failure_keeps_unverified_candidates(self, monkeypatch):
+        """If yt-dlp duration probing fails, keep RSS candidates.
+
+        GitHub Actions YouTube metadata probes can be blocked as bot traffic.
+        Failing open keeps a whole source from starving; transcript extraction
+        and summarization can still reject thin videos later.
+        """
         rss_videos = [_make_meta("vidA00001"), _make_meta("vidB00001")]
         monkeypatch.setattr(discovery, "_fetch_rss", lambda *a, **kw: rss_videos)
 
@@ -622,7 +627,8 @@ class TestDiscoverNewVideos:
             known_video_ids=set(),
             min_duration_seconds=600,
         )
-        assert new == []
+        assert [v.video_id for v in new] == ["vidA00001", "vidB00001"]
+        assert all(v.duration_seconds is None for v in new)
 
     def test_min_duration_filters_catchup_path(self, monkeypatch):
         """yt-dlp catchup videos already carry duration — filter directly,

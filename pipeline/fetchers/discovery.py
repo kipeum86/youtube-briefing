@@ -52,7 +52,8 @@ def discover_new_videos(
 
     Filter order matters:
       1. Filter to new (not in known_video_ids)
-      2. Filter out short or unknown-duration videos when a duration floor is enabled
+      2. Filter out short videos when a duration floor is enabled and duration
+         metadata can be resolved
       3. Cap to max_new_videos most recent
 
     Duration-filtering before capping matters: if a channel drops 5 Shorts in
@@ -68,9 +69,11 @@ def discover_new_videos(
         max_new_videos: optional cap on how many NEW videos to return per run.
             None (default) means no cap (use whatever RSS gives us, up to 15).
         min_duration_seconds: optional floor on video length, in seconds.
-            Videos shorter than this are dropped. Videos whose duration cannot
-            be resolved are also skipped so short clips do not leak through.
-            None or 0 disables the filter. Use 1200 to require 20+ minutes.
+            Videos shorter than this are dropped when duration metadata is
+            available. If RSS duration probing is blocked by YouTube, the
+            candidates are kept unverified so one yt-dlp failure does not starve
+            the entire source. None or 0 disables the filter. Use 1200 to
+            require 20+ minutes when durations can be resolved.
 
     Returns:
         List of new VideoMeta objects, ordered newest-first. Empty list if nothing new.
@@ -181,11 +184,11 @@ def _enrich_and_filter_durations(
             durations = _probe_durations(to_probe)
         except Exception as e:  # noqa: BLE001
             logger.warning(
-                "[%s] duration probe failed: %s — skipping candidates until duration can be verified",
+                "[%s] duration probe failed: %s — keeping RSS candidates with unverified duration",
                 channel_slug,
                 e,
             )
-            return [], len(videos)
+            return videos, 0
 
     # Replace each VideoMeta with a copy carrying the probed duration.
     enriched: list[VideoMeta] = []
