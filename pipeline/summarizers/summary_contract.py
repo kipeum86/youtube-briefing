@@ -51,6 +51,7 @@ BULLET_LIST_RE = re.compile(r"^\s*[-*]\s+", re.MULTILINE)
 META_NARRATION_RE = re.compile(
     r"^\s*(이\s*(글|영상|콘텐츠)|원문)은\s+.+(다룬다|다룹니다|이야기한다|이야기합니다|설명한다|설명합니다)"
 )
+SENTENCE_END_RE = re.compile(r"[.!?。！？](?:[\"'”’)\]}]*)$")
 
 
 def parse_markdown_summary(text: str) -> ParsedSummary:
@@ -157,6 +158,16 @@ def validate_summary_contract(
                 "body paragraphs must not include bullet lists",
             )
         )
+
+    for paragraph in parsed.paragraphs:
+        if paragraph.strip() and not SENTENCE_END_RE.search(paragraph.strip()):
+            issues.append(
+                SummaryValidationIssue(
+                    "incomplete_sentence",
+                    "body paragraphs must end with sentence-ending punctuation",
+                )
+            )
+            break
 
     first_body = parsed.paragraphs[0] if parsed.paragraphs else ""
     if first_body and META_NARRATION_RE.search(first_body):

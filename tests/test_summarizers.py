@@ -95,6 +95,10 @@ def _summary_with_two_body_blocks(length: int = 900) -> str:
     return summary
 
 
+def _summary_with_incomplete_sentence() -> str:
+    return _korean_summary(900).rstrip(".")
+
+
 def _structured_summary_json() -> str:
     return """
 {
@@ -229,6 +233,17 @@ class TestBaseSummarizerPolicy:
     def test_wrong_block_count_triggers_full_retry_success(self):
         s = FakeSummarizer(
             responses=[_summary_with_two_body_blocks(), _korean_summary(900)]
+        )
+        result = s.summarize("비밀트랜스크립트" * 30, _make_video_meta())
+
+        assert 700 <= len(result.summary) <= 1200
+        assert s.call_count == 2
+        assert s.repair_call_count == 0
+        assert "비밀트랜스크립트" in s.prompts[1]
+
+    def test_incomplete_sentence_triggers_full_retry_success(self):
+        s = FakeSummarizer(
+            responses=[_summary_with_incomplete_sentence(), _korean_summary(900)]
         )
         result = s.summarize("비밀트랜스크립트" * 30, _make_video_meta())
 

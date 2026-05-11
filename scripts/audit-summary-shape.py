@@ -32,6 +32,7 @@ ISSUE_ORDER = [
     "markdown_header",
     "bullet_list",
     "meta_narration",
+    "incomplete_sentence",
 ]
 
 

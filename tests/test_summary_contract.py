@@ -125,6 +125,18 @@ def test_meta_narration_is_reported():
     assert "meta_narration" in _codes(summary)
 
 
+def test_incomplete_sentence_is_reported():
+    summary = _summary(
+        body=[
+            "파월 의장의 발언은 시장의 금리 기대를 흔들었다.",
+            "도트 플롯과 국채금리의 괴리가 핵심 근거다.",
+            "이번 사례는 통화정책 신호의 역설을 보여주며 시장 기대가",
+        ]
+    )
+
+    assert "incomplete_sentence" in _codes(summary)
+
+
 def test_length_bounds_are_reported():
     low = validate_summary_contract(_summary(), SummaryContract(min_chars=1000, max_chars=2000))
     high = validate_summary_contract(_summary(), SummaryContract(min_chars=1, max_chars=10))

@@ -41,6 +41,7 @@ FORMAT_ONLY_REPAIR_CODES = {
 FULL_RETRY_CODES = {
     "length_below_min",
     "wrong_block_count",
+    "incomplete_sentence",
 }
 
 
@@ -402,6 +403,7 @@ def _can_contract_repair_after_retries(
             "markdown_header",
             "bullet_list",
             "meta_narration",
+            "incomplete_sentence",
         }
     )
 
