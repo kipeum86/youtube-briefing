@@ -1,0 +1,20 @@
+{
+  "video_id": "224283239170",
+  "channel_slug": "mer",
+  "channel_name": "메르의 블로그",
+  "title": "인보사 떡밥이 부활하나? A/S (feat 코오롱티슈진)",
+  "published_at": "2026-05-12T15:10:00Z",
+  "video_url": "https://blog.naver.com/ranto28/224283239170",
+  "thumbnail_url": "https://blogthumb.pstatic.net/MjAyNjA1MTJfMjcy/MDAxNzc4NTc1NTY2OTUx.DYPDdYXhQbBAU0H37HgeuAtxUiAriolJsl4bExoAvMgg.eBn1HCWFkpr0adD_ZkiDr9y1qKtVNOM78QEc4gzKpKkg.PNG/ChatGPT_Image_2026%B3%E2_5%BF%F9_12%C0%CF_%BF%C0%C8%C4_05_39_21.png?type=s3",
+  "duration_seconds": 0,
+  "discovery_source": "naver_blog_rss",
+  "source_type": "naver_blog",
+  "status": "failed",
+  "summary": null,
+  "summary_sections": null,
+  "failure_reason": "wrong_language",
+  "generated_at": "2026-05-12T22:21:51.492629Z",
+  "provider": "gemini",
+  "model": "gemini-3-flash-preview",
+  "prompt_version": "v2"
+}
