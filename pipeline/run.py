@@ -230,7 +230,9 @@ def build_summarizer_from_config(pipeline_cfg: PipelineConfig) -> Summarizer:
     return summarizer
 
 
-def _is_retryable_summary_contract_failure(error: PermanentSummarizerError) -> bool:
+def _is_retryable_summarizer_failure(error: PermanentSummarizerError) -> bool:
+    if error.failure_code == "wrong_language":
+        return True
     return (
         error.failure_code == "summarizer_refused"
         and "failed summary contract" in str(error)
@@ -300,9 +302,9 @@ def process_video(
         logger.warning("[%s] transient summarizer failure, skipping: %s", meta.channel_slug, e)
         return None
     except PermanentSummarizerError as e:
-        if _is_retryable_summary_contract_failure(e):
+        if _is_retryable_summarizer_failure(e):
             logger.warning(
-                "[%s] summary contract failure, skipping for retry next run: %s",
+                "[%s] retryable summarizer failure, skipping for retry next run: %s",
                 meta.channel_slug,
                 e,
             )

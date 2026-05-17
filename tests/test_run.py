@@ -193,7 +193,7 @@ class TestProcessVideo:
         )
         assert result is None
 
-    def test_permanent_summarizer_failure_writes_placeholder(self, tmp_path: Path, fake_summarizer, monkeypatch):
+    def test_wrong_language_summarizer_failure_is_retried_next_run(self, tmp_path: Path, fake_summarizer, monkeypatch):
         monkeypatch.setattr(
             run,
             "extract_transcript",
@@ -209,9 +209,8 @@ class TestProcessVideo:
             briefings_dir=tmp_path / "briefings",
             transcript_cache_dir=None,
         )
-        assert result is not None
-        assert result.status == BriefingStatus.FAILED
-        assert result.failure_reason.value == "wrong_language"
+        assert result is None
+        assert not (tmp_path / "briefings").exists()
 
     def test_summary_contract_failure_is_retried_next_run(self, tmp_path: Path, fake_summarizer, monkeypatch):
         monkeypatch.setattr(

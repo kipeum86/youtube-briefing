@@ -184,11 +184,11 @@ def _enrich_and_filter_durations(
             durations = _probe_durations(to_probe)
         except Exception as e:  # noqa: BLE001
             logger.warning(
-                "[%s] duration probe failed: %s — keeping RSS candidates with unverified duration",
+                "[%s] duration probe failed: %s — dropping RSS candidates with unverified duration",
                 channel_slug,
                 e,
             )
-            return videos, 0
+            return [], len(videos)
 
     # Replace each VideoMeta with a copy carrying the probed duration.
     enriched: list[VideoMeta] = []

@@ -167,12 +167,19 @@ class TestListProcessedVideoIds:
         ids = list_processed_video_ids(tmp_path)
         assert ids == {"abc123XYZ45", "def456QRS78", "fail789UVW"}
 
-    def test_excludes_retryable_summarizer_refused_failures(self, tmp_path: Path):
+    def test_excludes_retryable_summarizer_failures(self, tmp_path: Path):
         write_briefing(_make_ok_briefing(video_id="abc123XYZ45"), tmp_path)
         write_briefing(
             _make_failed_briefing(
                 video_id="retry999XYZ",
                 failure_reason=FailureReason.SUMMARIZER_REFUSED,
+            ),
+            tmp_path,
+        )
+        write_briefing(
+            _make_failed_briefing(
+                video_id="wronglang1",
+                failure_reason=FailureReason.WRONG_LANGUAGE,
             ),
             tmp_path,
         )
@@ -224,13 +231,21 @@ class TestListProcessedVideoIdsByChannel:
             "parkjonghoon": {"parkjh001XY"},
         }
 
-    def test_excludes_retryable_summarizer_refused_failures_by_channel(self, tmp_path: Path):
+    def test_excludes_retryable_summarizer_failures_by_channel(self, tmp_path: Path):
         write_briefing(_make_ok_briefing(video_id="shuka0001XY", slug="shuka"), tmp_path)
         write_briefing(
             _make_failed_briefing(
                 video_id="retry999XYZ",
                 slug="shuka",
                 failure_reason=FailureReason.SUMMARIZER_REFUSED,
+            ),
+            tmp_path,
+        )
+        write_briefing(
+            _make_failed_briefing(
+                video_id="wronglang1",
+                slug="shuka",
+                failure_reason=FailureReason.WRONG_LANGUAGE,
             ),
             tmp_path,
         )

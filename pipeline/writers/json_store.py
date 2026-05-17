@@ -39,7 +39,10 @@ _FILENAME_PATTERN = re.compile(
     r"^(?P<date>\d{4}-\d{2}-\d{2})-(?P<slug>[a-z][a-z0-9-]*)-(?P<video_id>[A-Za-z0-9_-]{5,20})\.json$"
 )
 
-_RETRYABLE_FAILURE_REASONS = {FailureReason.SUMMARIZER_REFUSED.value}
+_RETRYABLE_FAILURE_REASONS = {
+    FailureReason.SUMMARIZER_REFUSED.value,
+    FailureReason.WRONG_LANGUAGE.value,
+}
 
 
 def briefing_filename(briefing: Briefing) -> str:
